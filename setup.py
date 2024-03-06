@@ -10,6 +10,6 @@ setup(
     ],
     author='Samuel Haefs',
     author_email='samuel.haefs@tu-dortmund.de',
-    description='Your package description',
+    description='Package for the muon spectrum analysis.',
     #url='https://github.com/yourusername/pipe',
 )

@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from .calc import ratio_error
 
 # Import for script within the pipeline project
 #try:
@@ -13,7 +14,10 @@ import matplotlib.pyplot as plt
 #except ImportError:
 #    pass
 
-from .calc import ratio_error
+TUORANGE = (227/255, 105/255, 19/255)
+TUGREEN = (132/255, 184/255, 25/255)
+DARK = '#3a3d41'
+DARKBLUE = '#170a45'
 
 def fill_between_axes(axes, bins, y1, y2, color, alpha=0.5):
 
@@ -93,23 +97,33 @@ def plot_oob_marker(axes, x, y, upper_bound=None, lower_bound=None, color=None):
         axes.plot(x[lower_mask], [lower_bound]*sum(lower_mask), linestyle='', marker=7, color=color)
     return
 
-def plot_ratio_result_true(target_bins, R_july_reco, err_july, R_dez_reco, err_dez, R_july_true, R_dez_true, xlabel, path_out, lower_bound_ratio=None, upper_bound_ratio=None):
+def plot_ratio_result_true(target_bins, R_july_reco, err_july, R_dez_reco, err_dez, R_july_true, R_dez_true, xlabel, path_out, lower_bound_ratio=None, upper_bound_ratio=None, dark_mode=False):
+    # check if dark mode is set
+    if dark_mode:
+        plt.style.use('dark_background')
+        facecolor = DARK
+    else:
+        plt.style.use('default')
+        facecolor = 'white'
     # main plot
     #bincenters = target_bins[:-1] + np.diff(target_bins)/2
     
     # calc bin centers on log scale
     bincenters = np.exp((np.log(target_bins[:-1]) + np.log(target_bins[1:]))/2)
-
     xerr = np.diff(target_bins)/2
     
+    fig, (axes1, axes2) = plt.subplots(2,1,sharex=True,gridspec_kw={'height_ratios': [4,1]}, facecolor=facecolor)
+    
+    # Set face color for each subplot
+    axes1.set_facecolor(facecolor)
+    axes2.set_facecolor(facecolor)
 
-    fig, (axes1, axes2) = plt.subplots(2,1,sharex=True,gridspec_kw={'height_ratios': [4,1]})
     # main plot
     axes1.plot(
         [target_bins[0], target_bins[-1]],
         [1,1],
         'k-'
-    )
+        )
     #axes1.errorbar(
     #    bincenters,
     #    R_july_reco,
@@ -148,7 +162,7 @@ def plot_ratio_result_true(target_bins, R_july_reco, err_july, R_dez_reco, err_d
         R_dez_reco,
         marker='p',
         ls='',
-        label='Dezember reco.',
+        label='January reco.',
         color='#E36913'
     )
     fill_between_axes(axes1, target_bins, R_dez_reco - err_dez[0], R_dez_reco + err_dez[1], color='#E36913')
@@ -156,7 +170,7 @@ def plot_ratio_result_true(target_bins, R_july_reco, err_july, R_dez_reco, err_d
     axes1.hist(
         bincenters,
         bins=target_bins,
-        label='Dezember true',
+        label='January true',
         weights=R_dez_true,
         histtype='step',
         color='#E36913',
@@ -166,7 +180,7 @@ def plot_ratio_result_true(target_bins, R_july_reco, err_july, R_dez_reco, err_d
     axes1.set_ylabel(r'$R = $season / year')
     #axes1.set_yscale('log')
     axes1.set_xscale('log')
-    axes1.legend()
+    axes1.legend(facecolor=facecolor)
 
     # ratio plot
     axes2.plot(
@@ -216,14 +230,32 @@ def plot_ratio_result_true(target_bins, R_july_reco, err_july, R_dez_reco, err_d
         plot_oob_marker(axes2, bincenters, R_dez_reco/R_dez_true, upper_bound=upper_bound_ratio, lower_bound=lower_bound_ratio, color='#E36913')
 
     plt.tight_layout()
-    plt.savefig(path_out)
+    plt.savefig(path_out, facecolor=facecolor)
     return
     
-def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est_12, err_12, est_14, err_14, xlabel, path_out, lower_bound_ratio=None, upper_bound_ratio=None):
+def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est_12, err_12, est_14, err_14, xlabel, path_out, lower_bound_ratio=None, upper_bound_ratio=None, dark_mode=False):
+    if dark_mode:
+        plt.style.use('dark_background')
+        facecolor = DARK
+        color_yearunf = 'white'#'#d81b60'
+        color_yeartrue = 'white'
+    else:
+        plt.style.use('default')
+        facecolor = 'white'
+        color_yearunf = DARKBLUE
+        color_yeartrue = 'black'
+    
     bincenters = target_bins[:-1] + np.diff(target_bins)/2
-    xerr = np.diff(target_bins)/2
+    
+    #bincenters = np.exp((np.log(target_bins[:-1]) + np.log(target_bins[1:]))/2)
 
-    fig, (axes1, axes2) = plt.subplots(2,1,sharex=True,gridspec_kw={'height_ratios': [4,1]})
+    xerr = np.diff(target_bins)/2
+    fig, (axes1, axes2) = plt.subplots(2,1,sharex=True,gridspec_kw={'height_ratios': [4,1]}, facecolor=facecolor)
+    
+    # Set face color for each subplot
+    axes1.set_facecolor(facecolor)
+    axes2.set_facecolor(facecolor)
+    
     # main plot
     axes1.errorbar(
         bincenters,
@@ -232,15 +264,15 @@ def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est
         yerr=err_annual,
         marker='.',
         ls='',
-        label='Year',
-        color='cornflowerblue'
+        label='Year reco.',
+        color=color_yearunf
     )
     axes1.step(
         target_bins,
         np.append(true_target,0),
         where='post',
-        label='True',
-        color='black',
+        label='year true',
+        color=color_yeartrue,
         linestyle=':'
     )
     axes1.errorbar(
@@ -250,7 +282,7 @@ def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est
         yerr=err_12,
         marker='.',
         ls='',
-        label='July',
+        label='July reco.',
         color='#84B819'
     )
     axes1.errorbar(
@@ -260,13 +292,13 @@ def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est
         yerr=err_14,
         marker='.',
         ls='',
-        label='Dezember',
+        label='January reco.',
         color='#E36913'
     )
     axes1.set_ylabel(r'Event rate / s')
     axes1.set_yscale('log')
     axes1.set_xscale('log')
-    axes1.legend()
+    axes1.legend(facecolor=facecolor)
 
     # ratio plot
     axes2.plot(
@@ -302,4 +334,4 @@ def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est
     axes2.set_ylabel('season /\nyear')
     axes2.set_xlim(target_bins[0], target_bins[-1])
     plt.tight_layout()
-    plt.savefig(path_out)
+    plt.savefig(path_out, facecolor=facecolor)

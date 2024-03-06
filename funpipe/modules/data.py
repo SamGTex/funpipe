@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import simweights
+import os
 
 class DataManager:
     def __init__(self):
@@ -32,13 +33,16 @@ class DataManager:
         # get weights and write in dataframe
         weighter = None
 
+        list_hdf = []
         for file in filelist:
-            print(f'Read in file {file}')
-            tmp_df = pd.HDFStore(file, "r")
+            # refresh line
+            print(f'\rReading file {file}...', end='')
+            list_hdf.append(pd.HDFStore(file, "r"))
             if weighter is None:
-                weighter = simweights.CorsikaWeighter(tmp_df,total_files)
+                weighter = simweights.CorsikaWeighter(list_hdf[-1],total_files)
             else:
-                weighter += simweights.CorsikaWeighter(tmp_df,total_files)
+                weighter += simweights.CorsikaWeighter(list_hdf[-1],total_files)
+
         print()
 
         df = pd.DataFrame()
@@ -57,15 +61,19 @@ class DataManager:
         # append to dataframe
         self.df_raw = pd.concat([self.df_raw, df], ignore_index=True)
 
+        # close hdf5 files
+        for hdf in list_hdf:
+            hdf.close()
+
         print('Done.\n')
 
         return self.df_raw
 
-    def __eventtype_label__(self, he_muon, etot_bundle, Qmax, Qtot, Esep_value, Qsep_value):
+    def __eventtype_labelMC__(self, he_muon, etot_bundle, Qmax, Qtot, Esep_value, Qsep_value):
         # definition of leading, bundle and balloon event
         mask_bundle = (he_muon/etot_bundle < Esep_value) #0
         mask_leading = (he_muon/etot_bundle > Esep_value) & (Qmax/Qtot < Qsep_value) #1
-        mask_balloon = (he_muon/etot_bundle > Esep_value) & (Qmax/Qtot > Qsep_value) #2
+        mask_balloon = (Qmax/Qtot > Qsep_value) #2
 
         y = np.zeros_like(he_muon)
         y[mask_bundle] = 0
@@ -74,7 +82,17 @@ class DataManager:
 
         return y
     
-    def create_eventtype(self, name_Eleading, nameEbundle, nameQmax, nameQtot, cut_E, cut_Q):
+    def __eventtype_labelExp__(self, Qmax, Qtot, Qsep_value):
+        # definition of balloon and bundle event (contains also leading muons)
+        mask_balloon = (Qmax/Qtot > Qsep_value) #0
+
+        y = np.zeros_like(Qmax)
+        y[mask_balloon] = 2
+
+        return y
+        
+    
+    def create_eventtype(self, name_Eleading, nameEbundle, nameQmax, nameQtot, cut_E, cut_Q, exp=False):
         '''
         Leading muon: E_i(max) / E_total > cut_E and Q_i(max)/Q_total < cut_Q
         Balloon: E_i(max) / E_total > cut_E and Q_i(max)/Q_total > cut_Q
@@ -94,8 +112,13 @@ class DataManager:
             Values: 0 (bundle), 1 (leading), 2 (balloon)
 
         '''
-        self.df_raw['event_type'] = self.__eventtype_label__(self.df_raw[name_Eleading], self.df_raw[nameEbundle], self.df_raw[nameQmax], self.df_raw[nameQtot], cut_E, cut_Q)
-        self.event_type = True
+        if exp:
+            self.df_raw['event_type'] = self.__eventtype_labelExp__(self.df_raw[nameQmax], self.df_raw[nameQtot], cut_Q)
+            self.event_type = True
+
+        else:
+            self.df_raw['event_type'] = self.__eventtype_labelMC__(self.df_raw[name_Eleading], self.df_raw[nameEbundle], self.df_raw[nameQmax], self.df_raw[nameQtot], cut_E, cut_Q)
+            self.event_type = True
 
         return self.df_raw['event_type']
 
@@ -122,6 +145,34 @@ class DataManager:
         Parameters
         ----------
         conditions : dict
+            Dictionary conditions with keys 'variable' and 'conditions', where the 2nd. conditions is a
+            old format: tuple of threshold and operator
+            new format: list of dictionaries with keys 'value' and 'operator'.
+
+        '''
+
+        if isinstance(conditions, dict):
+            df_ = self.__applycutsdict__(conditions, inplace)
+        elif isinstance(conditions, list):
+            df_ = self.__applycutslist__(conditions, inplace)
+        else:
+            raise ValueError("Invalid condition format.")
+            
+        if inplace:
+            self.df_raw = df_
+            self.df_raw.reset_index(drop=True, inplace=True)
+            return self.df_raw
+
+        else:
+            return df_
+
+    def __applycutsdict__(self, conditions, inplace=True):
+        '''
+        Apply quality cuts to dataframe.
+
+        Parameters
+        ----------
+        conditions : dict
             Dictionary of conditions. Key is column name, value is tuple of threshold and operator.
             Example: conditions = {'Qtot_CleanedPulses.value': (1000.0, '>')}
             Possible operators: '<', '>', '=='
@@ -140,13 +191,38 @@ class DataManager:
             print(f'Apply cut {column} {operator} {threshold}')
             print(f'Number of events: {mask.sum()}\n')
 
-        if inplace:
-            self.df_raw = self.df_raw[mask]
-            self.df_raw.reset_index(drop=True, inplace=True)
-            return self.df_raw
+        return self.df_raw[mask]
+        
+    def __applycutslist__(self, conditions, inplace=True):
+        '''
+        Apply quality cuts to dataframe.
+        
+        Parameters
+        ----------
+        conditions : list
+            List of conditions. Each condition is a dictionary with keys 'variable' and 'conditions_var'. Where conditions_var is a list of dictionaries with keys 'value' and 'operator'.
 
-        else:
-            return self.df_raw[mask]
+        '''
+
+        mask = np.full(len(self.df_raw), True, dtype=bool)
+        for condition in conditions:
+            variable = condition['variable']
+            conditions_var = condition['conditions']
+            for cond in conditions_var:
+                threshold = cond['value']
+                operator = cond['operator']
+                if operator == '<':
+                    mask &= (self.df_raw[variable] < threshold)
+                elif operator == '>':
+                    mask &= (self.df_raw[variable] > threshold)
+                elif operator == '==':
+                    mask &= (self.df_raw[variable] == threshold)
+                else:
+                    raise ValueError(f"Invalid operator: {operator}. Use '<', '>', or '=='.")
+                print(f'Apply cut {variable} {operator} {threshold}')
+                print(f'Number of events: {mask.sum()}\n')
+        
+        return self.df_raw[mask]
 
     def drop_eventtype(self, event_id):
         '''
@@ -174,7 +250,7 @@ class DataManager:
 # ---------- helper functions ----------
 
 # create list of paths to hdf5 files, each HDF5 contains 1000 files
-def create_path_list(dir_path, file_prefix, total_files, files_per_hdf, filenum_old=True):
+def create_path_list(dir_path, file_prefix, total_files, files_per_hdf, filetype=''):
     '''
     Create list of paths to hdf5 files, each HDF5 contains files_per_hdf files.
     dir_path+file_prefix+fileNum_str+'.hdf5
@@ -186,13 +262,12 @@ def create_path_list(dir_path, file_prefix, total_files, files_per_hdf, filenum_
     file_prefix : str
         Prefix of hdf5 files.
     total_files : int
-        Number of hdf5 files: total_files/1000 must be an integer.
+        Number of hdf5 files: total_files must be an integer.
     files_per_hdf: int
             Number of files merged in one hdf5 file.
-    filenum_old : bool
-        If True, use old file numbering, using zeros to fill up to merged files numbers
-        If False, use new file numbering, using X to fill up to merged files numbers
-            
+    filetype : str
+        Type of file name notation. Fill merged number of files with zeros or X. If not specified, go through all subfolders and create filelist with all hdf5 files.
+
     Returns
     -------
     filelist : list
@@ -201,30 +276,40 @@ def create_path_list(dir_path, file_prefix, total_files, files_per_hdf, filenum_
 
     filelist = []
 
-    if filenum_old:
+    if filetype == 'zeros':
         for fileNum in range(0, total_files, files_per_hdf):
             fileNum_str = str(fileNum).zfill(6)
             filelist.append(dir_path+file_prefix+fileNum_str+'.hdf5')
-    else:
-        # loop over subfolders with 1000 files
-        for _runnum_lower in range(0, total_files, 1000):
-            _runnum_upper = _runnum_lower + 999
 
-            #_subfolder = str(_runnum_lower).zfill(7) + '-' + str(_runnum_upper).zfill(7)
-            _subfolder =''
-            # loop over files in subfolder
-            # e.g. Level2_IC86.2020_corsika.020904.0161XX.i3.bz2, XX because of 100 files per hdf5
-            # for 1000 files per hdf5: 016XXX
-            # get number of x
-            for file_num in range(_runnum_lower, _runnum_upper, files_per_hdf):
+    elif filetype == 'X' or filetype == 'x':
+        # folder structure: /data/user/shaefs/bundle10/CORSIKA/20904/level3_dev/0000000-0000999 .../0001000
+        # with file names e.g. Level2_IC86.2020_corsika.020904.00474X.hdf5 
+        FILES_PER_FOLDER = 1000
+        hdf_files_total = total_files // files_per_hdf
+
+        for iter_num in range(0, hdf_files_total, FILES_PER_FOLDER):
+            _subfolder = str(iter_num).zfill(7) + '-' + str(iter_num+FILES_PER_FOLDER-1).zfill(7)
+
+            # iterate over files in subfolder
+            for fileNum in range(0, FILES_PER_FOLDER):
+
                 num_x = len(str(files_per_hdf)) - 1
+                _num_merged = (fileNum+iter_num)
+                fileNum_str = str(_num_merged).zfill(6-num_x) + 'X'*num_x
 
-                # substitute last num_x digits of file_num with num_x times X
-                _filename = str(file_num).zfill(6)
-                _filename = _filename[:-num_x] + 'X'*num_x
+                filelist.append(dir_path+_subfolder+'/'+file_prefix+fileNum_str+'.hdf5')
+                
+    else:
+        # create paths to all files listed in dir_path with os, go also in subfolders
+        print('Create filelist going through all subfolders.')
+        for root, dirs, files in os.walk(dir_path):
+            for file in files:
+                if file.endswith(".hdf5"):
+                    filelist.append(os.path.join(root, file))
+        
 
-                filelist.append(dir_path+_subfolder+file_prefix+_filename+'.hdf5')
-
+    if len(filelist) != total_files//files_per_hdf:
+        print(f'Warning: Number of files in generated filelist ({len(filelist)}) should be equal to given num_files/files_per_hdf ({total_files//files_per_hdf}).')
     return filelist
 
 def index_resample_data(weights, test_size):
