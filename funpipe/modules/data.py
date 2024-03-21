@@ -2,13 +2,120 @@ import pandas as pd
 import numpy as np
 import simweights
 import os
+import h5py
 
+# ---------- MC data ----------
 class DataManager:
     def __init__(self):
         self.df_raw = pd.DataFrame()
         self.event_type = False
         self.target = None
 
+    def read_mc_weights(self, filelist, path_feature_names, total_files, models, model_names, exp=False):
+        '''
+        Read in data from hdf5 files and save weights and features (saved in path_feature_names) to dataframe.
+
+        Parameters
+        ----------
+        filelist : list
+            List of paths to hdf5 files.
+        path_feature_names : str
+            Path to csv file with feature names.
+        total_files : int
+            Number of files for calculating weights.
+        models : list of simweights.Model
+            Models to calculate weights.
+        model_names : list of str
+            Output name of model in dataframe.
+            
+        Returns
+        -------
+        df_raw : pandas.DataFrame
+            Dataframe with all features and weights.
+        '''
+        # get variable names
+        df_colnames = pd.read_csv(path_feature_names, comment='#', names=['column', 'subcolumn'], skipinitialspace=True)
+        col_names = df_colnames['column'].to_list()
+        subcol_names = df_colnames['subcolumn'].to_list()
+
+        # read in files
+        for file in filelist:
+            print(f'\rReading file {file}...', end='')
+            _df = pd.DataFrame()
+
+            # read in hdf5 file and store as Weighter object
+            _hdf = pd.HDFStore(file, "r")
+            weighter = simweights.CorsikaWeighter(_hdf,total_files)
+            
+            # calculate and save weights in df
+            for model, model_name in zip(models, model_names):
+                _df[model_name] = weighter.get_weights(model)
+
+            # save features in df
+            for colname, subcolname in zip(col_names, subcol_names):
+                #print(f'Write {colname}.{subcolname} in DataFrame.')
+                _df[colname+"."+subcolname] = weighter.get_column(colname, subcolname)
+
+            # append to dataframe
+            self.df_raw = pd.concat([self.df_raw, _df], ignore_index=True)
+
+            _hdf.close()
+
+        print('Done.\n')
+        
+        return self.df_raw
+    
+    def read_mc(self, filelist, path_feature_names, total_files, model, exp=False):
+        '''
+        Read in data from hdf5 files and save weights and features (saved in path_feature_names) to dataframe.
+
+        Parameters
+        ----------
+        filelist : list
+            List of paths to hdf5 files.
+        path_feature_names : str
+            Path to csv file with feature names.
+        total_files : int
+            Number of files for calculating weights.
+        model : simweights.Model
+            Model to calculate weights.
+            
+        Returns
+        -------
+        df_raw : pandas.DataFrame
+            Dataframe with all features and weights.
+        '''
+        # get variable names
+        df_colnames = pd.read_csv(path_feature_names, comment='#', names=['column', 'subcolumn'], skipinitialspace=True)
+        col_names = df_colnames['column'].to_list()
+        subcol_names = df_colnames['subcolumn'].to_list()
+
+        # get weights and write in dataframe
+        for file in filelist:
+            # refresh line
+            print(f'\rReading file {file}...', end='')
+            _hdf = pd.HDFStore(file, "r")
+
+            weighter = simweights.CorsikaWeighter(_hdf,total_files)
+
+            _df = pd.DataFrame()
+            _df["weights"] = weighter.get_weights(model)
+
+
+            # save all variables in df
+            for colname, subcolname in zip(col_names, subcol_names):
+                #print(f'Write {colname}.{subcolname} in DataFrame.')
+                _df[colname+"."+subcolname] = weighter.get_column(colname, subcolname)
+
+            # append to dataframe
+            self.df_raw = pd.concat([self.df_raw, _df], ignore_index=True)
+
+            _hdf.close()
+
+        print('Done.\n')
+        
+        return self.df_raw
+    
     def read_to_df(self, filelist, path_feature_names, total_files, model):
         '''
         Read in data from hdf5 files and save weights and features (saved in path_feature_names) to dataframe.
@@ -42,6 +149,7 @@ class DataManager:
                 weighter = simweights.CorsikaWeighter(list_hdf[-1],total_files)
             else:
                 weighter += simweights.CorsikaWeighter(list_hdf[-1],total_files)
+            print(weighter)
 
         print()
 
@@ -339,7 +447,100 @@ def index_resample_data(weights, test_size):
     )
     return inds
 
+
+
+# ---------- experimental data ----------
+def read_in_exp(filelist, path_features):
+        '''
+        Read in data from hdf5 files and save features (saved in path_features) to dataframe.
+
+        Parameters
+        ----------
+        filelist : list
+            List of paths to hdf5 files.
+        path_features : str
+            Path to csv file with feature names. (Column, Subcolumn)
+
+        Returns
+        -------
+        df : pandas.DataFrame
+            Dataframe with all features.
+        '''
+
+        # get variable names
+        df_colnames = pd.read_csv(path_features, comment='#', names=['column', 'subcolumn'], skipinitialspace=True)
+        col_names = df_colnames['column'].to_list()
+        subcol_names = df_colnames['subcolumn'].to_list()
+
+        # read in hdf5 files
+        df = pd.DataFrame()
+
+        for file in filelist:
+
+            # read in hdf5 file
+            df_i = pd.DataFrame()
+            try:
+                with h5py.File(file, 'r') as f:
+                    #print('Reading file: ' + file)
+
+                    # get features
+                    for col, subcol in zip(col_names, subcol_names):
+                        df_i[col + '.' + subcol] = f[col][subcol]
+
+                    # append to dataframe
+                    df = pd.concat([df, df_i], ignore_index=True)
+            except:
+                print(f'Error reading file {file} and column {col}.{subcol}.')
+
+
+        return df
+
+def calc_livetime(run_nr, livetime_i):
+    '''
+    Calculate the total livetime in seconds.
+
+    Parameters:
+    -----------
+    run_nr : pd.Series
+        Run number.
+
+    livetime_i : pd.Series
+        Livetime per run.
+    '''
+
+    # get unique run numbers
+    run_nr_unique = run_nr.unique()
+    
+    # live time per run, only count first row of each run
+    livetime = 0
+    for run in run_nr_unique:
+        livetime += livetime_i[run_nr == run].iloc[0]
+
+    return livetime
+
+# ---------- general ----------
+
 def create_logbins(log_E_min, log_E_max, delta_logE):
+    '''
+    Create logarithmic energy bins between log_E_min and log_E_max with delta_logE.
+    Underflow and overflow bins are added.
+    If necessary E_max is reduced to fit the bin width.
+
+    Parameters
+    ----------
+    log_E_min : float
+        Minimum log10(E).
+    log_E_max : float
+        Maximum log10(E).
+    delta_logE : float
+        Logarithmic bin width.
+
+    Returns
+    -------
+    target_bins : numpy.ndarray
+        Array of energy bins.
+    '''
+
     n_bins = int((log_E_max - log_E_min) / delta_logE)
     target_bins = np.logspace(log_E_min, log_E_max, n_bins+1)
     print(f'{n_bins} bins between {log_E_min} and {log_E_max} with delta_logE={delta_logE}')

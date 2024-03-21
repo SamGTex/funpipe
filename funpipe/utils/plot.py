@@ -1,6 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
+from matplotlib.colors import LinearSegmentedColormap
 from .calc import ratio_error
+from .calc import weighted_pearson_corr, weighted_cov
 
 # Import for script within the pipeline project
 #try:
@@ -335,3 +338,204 @@ def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est
     axes2.set_xlim(target_bins[0], target_bins[-1])
     plt.tight_layout()
     plt.savefig(path_out, facecolor=facecolor)
+
+# -----------------------------
+# PLOTTER: 2d-distribution plot
+def plot_distr_simple(x, y, weights, xlabel, ylabel, path, Nbins, xlim=(None,None)):
+    fig = plt.figure(figsize=(8,6), dpi=300)
+    _, _, _, pcm = plt.hist2d(x, y, weights=weights, bins=Nbins, cmap='jet')
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+  
+    if xlim[0]!=None and xlim[1]!=None: #set xlim if not None      
+        print(xlim)
+        plt.xlim(*xlim)
+
+    plt.colorbar(pcm, label = 'Event Rate / Hz')
+    plt.savefig(path)
+    plt.close(fig)
+
+def plot_distr(x, y, weights, xlabel, ylabel, path_out, Nbins, figsize, cmap, fontsize=18, xlim=(None, None), show_corr=False):
+    # Use a light theme
+    plt.style.use('default')
+    plt.rcParams.update({'font.size': fontsize})
+
+    # Create figure and grid
+    fig = plt.figure(figsize=figsize, dpi=300)
+    gs = GridSpec(3, 3, width_ratios=[1, 0.1, 0.05], height_ratios=[0.1, 1, 0.1])
+
+    # Central 2D Histogram
+    ax_center = fig.add_subplot(gs[1, 0])
+    pcm = ax_center.hist2d(x, y, weights=weights, bins=Nbins, cmap=cmap, norm=None)[3]#LogNorm()
+
+    # Top histogram (x-axis)
+    ax_top = fig.add_subplot(gs[0, 0], sharex=ax_center)
+    ax_top.hist(x, bins=Nbins, weights=weights, histtype='stepfilled', linewidth=3, edgecolor='black', color=TUORANGE)
+    ax_top.tick_params(axis='y', labelleft=False)
+    ax_top.tick_params(axis='x', labelbottom=False)
+
+    # Right histogram (y-axis)
+    ax_right = fig.add_subplot(gs[1, 1], sharey=ax_center)
+    ax_right.hist(y, bins=Nbins, weights=weights, orientation='horizontal', histtype='stepfilled', linewidth=3, edgecolor='black', color=TUORANGE)
+    ax_right.tick_params(axis='y', labelleft=False)
+    ax_right.tick_params(axis='x', labelbottom=False)
+
+    # calc pearson correlation if show_corr=True
+    if show_corr:
+        corr = weighted_pearson_corr(x, y, weights)
+        ax_center.text(0.05, 0.9, f'Pearson correlation: {corr:.2f}', transform=ax_center.transAxes, color='white')
+
+    # Set labels
+    ax_center.set_xlabel(xlabel)
+    ax_center.set_ylabel(ylabel)
+
+    # Set xlim if not None
+    if xlim[0] is not None and xlim[1] is not None:
+        ax_center.set_xlim(*xlim)
+
+    # Add colorbar to the right
+    cbar_ax = fig.add_subplot(gs[1, 2])
+    cbar = fig.colorbar(pcm, cax=cbar_ax, label=r'event rate / Hz')
+
+    # Adjust layout
+    plt.tight_layout(h_pad=-1.5)#h_pad=-1.5, w_pad=-0.2)
+
+    # Save the figure
+    plt.savefig(path_out)
+    plt.close(fig)
+
+def plot_distr_dark(x, y, weights, xlabel, ylabel, path_out, Nbins, figsize, cmap, fontsize=18, xlim=(None, None), show_corr=False):
+    # Use a dark theme
+    plt.style.use('dark_background')
+    plt.rcParams.update({'font.size': fontsize})
+
+    # Create figure and grid
+    fig = plt.figure(figsize=figsize, dpi=300, facecolor=DARKBLUE)
+    gs = GridSpec(3, 3, width_ratios=[1, 0.1, 0.05], height_ratios=[0.1, 1, 0.1])
+
+    # Central 2D Histogram
+    ax_center = fig.add_subplot(gs[1, 0])
+    pcm = ax_center.hist2d(x, y, weights=weights, bins=Nbins, cmap=cmap, norm=None)[3]#LogNorm()
+    
+    # Top histogram (x-axis)
+    ax_top = fig.add_subplot(gs[0, 0], sharex=ax_center)
+    
+
+    ax_top.hist(x, bins=Nbins, weights=weights, histtype='stepfilled', linewidth=3, edgecolor='black', color=TUORANGE)
+    ax_top.tick_params(axis='y', labelleft=False)
+    ax_top.tick_params(axis='x', labelbottom=False)
+
+    # Right histogram (y-axis)
+    ax_right = fig.add_subplot(gs[1, 1], sharey=ax_center)
+    ax_right.hist(y, bins=Nbins, weights=weights, orientation='horizontal', histtype='stepfilled', linewidth=3, edgecolor='black', color=TUORANGE)
+    ax_right.tick_params(axis='y', labelleft=False)
+    ax_right.tick_params(axis='x', labelbottom=False)
+
+    # Calculate Pearson correlation if show_corr=True
+    if show_corr:
+        corr = weighted_pearson_corr(x, y, weights)
+        ax_center.text(0.05, 0.9, f'Pearson correlation: {corr:.2f}', transform=ax_center.transAxes, color='white')
+
+    # Set labels
+    ax_center.set_xlabel(xlabel, color='white')
+    ax_center.set_ylabel(ylabel, color='white')
+
+    # Set xlim if not None
+    if xlim[0] is not None and xlim[1] is not None:
+        ax_center.set_xlim(*xlim)
+
+    # Add colorbar to the right
+    cbar_ax = fig.add_subplot(gs[1, 2])
+    cbar = fig.colorbar(pcm, cax=cbar_ax, label=r'event rate / Hz')
+
+    # Set color of ticks and labels
+    cbar.ax.yaxis.set_tick_params(color='white')
+    plt.setp(plt.getp(cbar.ax.axes, 'yticklabels'), color='white')
+
+    # Adjust layout
+    plt.tight_layout(h_pad=-1.5)#h_pad=-1.5, w_pad=-0.2)
+
+    # Save the figure
+    plt.savefig(path_out, bbox_inches='tight', transparent=True)
+    plt.close(fig)
+
+    # set back to default
+    plt.style.use('default')
+
+def cmap_custom(color_list):
+    cmap = LinearSegmentedColormap.from_list('Custom_Blend', color_list)
+    return cmap
+
+def cmap_tuorange():
+    return cmap_custom([DARKBLUE, TUORANGE, (1,1,1)])
+
+# -----------------------------
+# MC vs. Data comparison
+def datamc_plot(bins, livetime, df_data, df_mc, w_name_mc, w_name_plot, w_colors, var, xlabel, filename, xlog=False, dark=False, lower=0.5, upper=1.5, fontsize=18):
+
+    if dark:
+        plt.style.use('dark_background')
+        color_data = 'white'
+    else:
+        plt.style.use('default')
+        color_data = 'black'
+    plt.rcParams.update({'font.size': fontsize})
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), dpi=300, gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
+    
+    # reduce place between subplots
+    plt.subplots_adjust(hspace=0.0)
+    
+    if xlog:
+        bincenters = np.power(10, (np.log10(bins[:-1]) + np.log10(bins[1:]))/2)
+    else:
+        bincenters = (bins[:-1] + bins[1:])/2
+        
+    # plot data
+    hist_data, bins_data = np.histogram(df_data[var], bins=bins)
+    error_data = np.sqrt(hist_data)
+ 
+    rate_data = hist_data / livetime
+    error_data = error_data / livetime
+    
+    # plot in event rate with error
+    ax1.errorbar(bincenters, rate_data, yerr=error_data, fmt='o', color=color_data, label='Data')
+
+    # plot MC
+    for _weight, _color, _label in zip(w_name_mc, w_colors, w_name_plot):
+        # plot histogram in main
+        hist_mc, bins_mc = np.histogram(df_mc[var], bins=bins, weights=df_mc[_weight])
+        ax1.step(bins_mc, np.append(hist_mc, hist_mc[-1]), where='post', color=_color, label=_label)
+        
+        # plot error in main
+        mc_err= (np.sqrt(np.histogram(df_mc[var], bins=bins, weights=df_mc[_weight]**2)[0]))
+        ax1.errorbar(bincenters, hist_mc, yerr=mc_err, fmt='none', color=_color)
+
+        # plot ratio
+        ratio_mean = rate_data / hist_mc
+        ratio_err = ratio_error(rate_data, hist_mc, error_data, mc_err)
+        ax2.errorbar(bincenters, ratio_mean, yerr=ratio_err, fmt='o', color=_color)
+        plot_oob_marker(ax2, bincenters, ratio_mean, upper, lower, _color)
+
+    # horizontal line at 1
+    ax2.axhline(1, color=color_data, linestyle='-', linewidth=2)
+
+    ax1.set_yscale('log')
+    ax1.set_ylabel('Event Rate / Hz')
+    ax1.legend()
+
+    ax2.set_ylabel('Data / MC')
+    ax2.set_xlabel(xlabel)
+
+
+    # set bounds
+    ax2.set_ylim(lower, upper)
+    ax2.set_yticks([0.6, 0.8, 1.0, 1.2, 1.4])
+
+    if xlog:
+        ax1.set_xscale('log')
+        ax2.set_xscale('log')
+
+    plt.savefig(filename, dpi=300, transparent=True)
+
+    return

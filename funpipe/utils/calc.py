@@ -72,3 +72,19 @@ def chi2_test(ratio_unf, ratio_true, ratio_err):
     print('Pvalue = ', pvalue)
     
     return chi2value, pvalue
+
+def weighted_cov(x, y, w):
+    """Weighted Covariance"""
+    w_mean_x = np.average(x, weights=w)
+    w_mean_y = np.average(y, weights=w)
+    return np.sum(w * (x - w_mean_x) * (y - w_mean_y)) / np.sum(w)
+
+
+def weighted_pearson_corr(x, y, w=None):
+    """Weighted Pearson Correlation"""
+
+    if w is None:
+        return np.corrcoef(x, y)[0][1]
+        # w = np.ones_like(x)
+
+    return weighted_cov(x, y, w) / np.sqrt(weighted_cov(x, x, w) * weighted_cov(y, y, w))
