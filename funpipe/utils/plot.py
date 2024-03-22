@@ -17,11 +17,13 @@ from .calc import weighted_pearson_corr, weighted_cov
 #except ImportError:
 #    pass
 
+# custom colors
 TUORANGE = (227/255, 105/255, 19/255)
 TUGREEN = (132/255, 184/255, 25/255)
 DARK = '#3a3d41'
 DARKBLUE = '#170a45'
 
+# ------ helper functions ------
 def fill_between_axes(axes, bins, y1, y2, color, alpha=0.5):
 
     '''
@@ -99,6 +101,42 @@ def plot_oob_marker(axes, x, y, upper_bound=None, lower_bound=None, color=None):
         lower_mask = y < lower_bound
         axes.plot(x[lower_mask], [lower_bound]*sum(lower_mask), linestyle='', marker=7, color=color)
     return
+
+def plot_errorend(ax, bin_centers, mean, lower_err, upper_err, color='black', linewidth=1):
+    '''
+    Plot horizontal line at end of errorbars.
+
+    Parameters:
+    -----------
+    ax : matplotlib.pyplot.axis
+        Where to pot the data.
+    bin_centers : numpy.array
+        The bin centers of the histogram.
+    mean : numpy.array
+        The mean values of the histogram.
+    lower_err : numpy.array
+        The lower error of the histogram.
+    upper_err : numpy.array
+        The upper error of the histogram.
+    color : color, optional (default='black')
+        The color of the errorbars.
+    linewidth : float, optional (default=1)
+        The width of the errorbars.
+
+    Returns:
+    --------
+    ax : matplotlib.pyplot.axis
+        The axis with the errorbars.
+    '''
+
+    for i, bin_value in enumerate(bin_centers):
+        err_start = bin_value - 0.5*(bin_centers[1] - bin_centers[0])
+        err_end = bin_value + 0.5*(bin_centers[1] - bin_centers[0])
+
+        ax.hlines(mean[i]-lower_err[i], err_start, err_end, color=color, linewidth=linewidth)
+        ax.hlines(mean[i]+upper_err[i], err_start, err_end, color=color, linewidth=linewidth)
+    
+    return ax
 
 def plot_ratio_result_true(target_bins, R_july_reco, err_july, R_dez_reco, err_dez, R_july_true, R_dez_true, xlabel, path_out, lower_bound_ratio=None, upper_bound_ratio=None, dark_mode=False):
     # check if dark mode is set
@@ -355,7 +393,7 @@ def plot_distr_simple(x, y, weights, xlabel, ylabel, path, Nbins, xlim=(None,Non
     plt.savefig(path)
     plt.close(fig)
 
-def plot_distr(x, y, weights, xlabel, ylabel, path_out, Nbins, figsize, cmap, fontsize=18, xlim=(None, None), show_corr=False):
+def plot_distr(x, y, weights, xlabel, ylabel, path_out, Nbins, figsize, cmap, fontsize=18, xlim=(None, None), ylim=(None,None), show_corr=False):
     # Use a light theme
     plt.style.use('default')
     plt.rcParams.update({'font.size': fontsize})
@@ -393,6 +431,10 @@ def plot_distr(x, y, weights, xlabel, ylabel, path_out, Nbins, figsize, cmap, fo
     if xlim[0] is not None and xlim[1] is not None:
         ax_center.set_xlim(*xlim)
 
+    # Set ylim if not None
+    if ylim[0] is not None and ylim[1] is not None:
+        ax_center.set_ylim(*ylim)
+
     # Add colorbar to the right
     cbar_ax = fig.add_subplot(gs[1, 2])
     cbar = fig.colorbar(pcm, cax=cbar_ax, label=r'event rate / Hz')
@@ -404,7 +446,7 @@ def plot_distr(x, y, weights, xlabel, ylabel, path_out, Nbins, figsize, cmap, fo
     plt.savefig(path_out)
     plt.close(fig)
 
-def plot_distr_dark(x, y, weights, xlabel, ylabel, path_out, Nbins, figsize, cmap, fontsize=18, xlim=(None, None), show_corr=False):
+def plot_distr_dark(x, y, weights, xlabel, ylabel, path_out, Nbins, figsize, cmap, fontsize=18, xlim=(None, None), ylim=(None, None), show_corr=False):
     # Use a dark theme
     plt.style.use('dark_background')
     plt.rcParams.update({'font.size': fontsize})
@@ -443,6 +485,10 @@ def plot_distr_dark(x, y, weights, xlabel, ylabel, path_out, Nbins, figsize, cma
     # Set xlim if not None
     if xlim[0] is not None and xlim[1] is not None:
         ax_center.set_xlim(*xlim)
+
+    # Set ylim if not None
+    if ylim[0] is not None and ylim[1] is not None:
+        ax_center.set_ylim(*ylim)
 
     # Add colorbar to the right
     cbar_ax = fig.add_subplot(gs[1, 2])

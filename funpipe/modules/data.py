@@ -263,6 +263,8 @@ class DataManager:
             df_ = self.__applycutsdict__(conditions, inplace)
         elif isinstance(conditions, list):
             df_ = self.__applycutslist__(conditions, inplace)
+        elif conditions is None:
+            return self.df_raw
         else:
             raise ValueError("Invalid condition format.")
             
