@@ -149,9 +149,6 @@ class DataManager:
                 weighter = simweights.CorsikaWeighter(list_hdf[-1],total_files)
             else:
                 weighter += simweights.CorsikaWeighter(list_hdf[-1],total_files)
-            print(weighter)
-
-        print()
 
         df = pd.DataFrame()
         df["weights"] = weighter.get_weights(model)
@@ -422,7 +419,7 @@ def create_path_list(dir_path, file_prefix, total_files, files_per_hdf, filetype
         print(f'Warning: Number of files in generated filelist ({len(filelist)}) should be equal to given num_files/files_per_hdf ({total_files//files_per_hdf}).')
     return filelist
 
-def index_resample_data(weights, test_size):
+def index_resample_data(weights, test_size, rng):
     '''
     Resample data according to weights.
 
@@ -441,7 +438,7 @@ def index_resample_data(weights, test_size):
 
     test_sample_size = len(weights)
     weights_test_normed = weights/np.sum(weights)
-    inds = np.random.choice(
+    inds = rng.choice(
             np.arange(test_sample_size),
             p=weights_test_normed,
             replace=True,
@@ -553,3 +550,29 @@ def create_logbins(log_E_min, log_E_max, delta_logE):
     
     print('Target energy bins:\n', target_bins)
     return target_bins
+
+def get_weights_shiftgamma(weights, primary_energy, delta_gamma: float):
+    '''
+    Calculate new weights with shifted spectral index by delta_gamma.
+
+    Parameters
+    ----------
+    weights : array-like
+        Weights of each event.
+    primary_energy : array-like
+        Primary energy of each event.
+    delta_gamma : float
+        Shift of spectral index.
+
+    Returns
+    -------
+    w_new : array-like
+        New weights.
+    '''
+    # check if shape is equal
+    if len(weights) != len(primary_energy):
+        raise ValueError('Length of weights and primary_energy must be equal.')
+    
+    w_new = weights * (primary_energy)**delta_gamma
+
+    return w_new
