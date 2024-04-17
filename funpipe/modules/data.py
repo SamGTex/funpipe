@@ -494,28 +494,7 @@ def read_in_exp(filelist, path_features):
 
         return df
 
-def calc_livetime(run_nr, livetime_i):
-    '''
-    Calculate the total livetime in seconds.
 
-    Parameters:
-    -----------
-    run_nr : pd.Series
-        Run number.
-
-    livetime_i : pd.Series
-        Livetime per run.
-    '''
-
-    # get unique run numbers
-    run_nr_unique = run_nr.unique()
-    
-    # live time per run, only count first row of each run
-    livetime = 0
-    for run in run_nr_unique:
-        livetime += livetime_i[run_nr == run].iloc[0]
-
-    return livetime
 
 # ---------- general ----------
 
@@ -576,3 +555,27 @@ def get_weights_shiftgamma(weights, primary_energy, delta_gamma: float):
     w_new = weights * (primary_energy)**delta_gamma
 
     return w_new
+
+# calc livetime
+def calc_livetime(run_nr, livetime_i):
+    '''
+    Calculate the total livetime in seconds.
+
+    Parameters:
+    -----------
+    run_nr : pd.Series
+        Run number.
+
+    livetime_i : pd.Series
+        Livetime per run.
+    '''
+
+    # get unique run numbers
+    run_nr_unique = run_nr.unique()
+    
+    # live time per run, only count first row of each run
+    livetime = 0
+    for run in run_nr_unique:
+        livetime += livetime_i[run_nr == run].iloc[0]
+
+    return livetime

@@ -102,6 +102,61 @@ def plot_oob_marker(axes, x, y, upper_bound=None, lower_bound=None, color=None):
         axes.plot(x[lower_mask], [lower_bound]*sum(lower_mask), linestyle='', marker=7, color=color)
     return
 
+import numpy as np
+
+def plot_errorend_bins(ax, bins, mean, lower_err, upper_err, color='black', linewidth=1, logx=False,width=0.2):
+    '''
+    Plot horizontal line at end of errorbars.
+
+    Parameters:
+    -----------
+    ax : matplotlib.pyplot.axis
+        Where to pot the data.
+    bins: numpy.array
+        The bin edges of the histogram.
+    mean : numpy.array
+        The mean values of the histogram.
+    lower_err : numpy.array
+        The lower error of the histogram.
+    upper_err : numpy.array
+        The upper error of the histogram.
+    color : color, optional (default='black')
+        The color of the errorbars.
+    linewidth : float, optional (default=1)
+        The width of the errorbars.
+    logx : bool, optional (default=False)
+        If True, the x-axis is logarithmic.
+
+    Returns:
+    --------
+    ax : matplotlib.pyplot.axis
+        The axis with the errorbars.
+    '''
+
+    if logx == False:
+        for i, bin_value in enumerate(bins[:-1]):
+            bin_width = bins[i+1] - bins[i]
+            bin_center = bin_value + 0.5*bin_width
+            err_start = bin_center + 0.5*bin_width
+            err_end = bin_center - 0.5*bin_width
+
+            ax.hlines(mean[i]-lower_err[i], err_start, err_end, color=color, linewidth=linewidth)
+            ax.hlines(mean[i]+upper_err[i], err_start, err_end, color=color, linewidth=linewidth)
+
+    else:
+        for i, bin_value in enumerate(bins[:-1]):
+            log_bin_start = np.log10(bins[i])
+            log_bin_end = np.log10(bins[i+1])
+
+            # error half of bin
+            err_start = 10**((log_bin_start + log_bin_end)/2 + width/2*(log_bin_end - log_bin_start))
+            err_end = 10**((log_bin_start + log_bin_end)/2 - width/2*(log_bin_end - log_bin_start))
+
+            ax.hlines(mean[i]-lower_err[i], err_start, err_end, color=color, linewidth=linewidth)
+            ax.hlines(mean[i]+upper_err[i], err_start, err_end, color=color, linewidth=linewidth)
+
+
+
 def plot_errorend(ax, bin_centers, mean, lower_err, upper_err, color='black', linewidth=1):
     '''
     Plot horizontal line at end of errorbars.
@@ -515,10 +570,68 @@ def cmap_custom(color_list):
 def cmap_tuorange():
     return cmap_custom([DARKBLUE, TUORANGE, (1,1,1)])
 
+def cmap_tuorange_reverse():
+    return cmap_custom([(1,1,1), TUORANGE, DARKBLUE])
+
 # -----------------------------
 # MC vs. Data comparison
 def datamc_plot(bins, livetime, df_data, df_mc, w_name_mc, w_name_plot, w_colors, var, xlabel, filename, xlog=False, dark=False, lower=0.5, upper=1.5, fontsize=18):
+    '''
+    Plot data and MC comparison in event rate and ratio.
 
+    Parameters:
+    -----------
+    bins : array-like
+        The bin edges of the histogram.
+
+    livetime : float
+        The livetime of the data in seconds.
+
+    df_data : pandas.DataFrame
+        The measured data.
+
+    df_mc : pandas.DataFrame
+        The simulated data.
+
+    w_name_mc : list
+        The column names in df_mc of the MC weights.
+
+    w_name_plot : list
+        The names of the weights for the legend.
+
+    w_colors : list
+        The colors for each weight.
+
+    var : str
+        The column name of the variable to plot.
+
+    xlabel : str
+        The label of the x-axis.
+
+    filename : str
+        The path to save the plot.
+
+    xlog : bool, optional (default=False)
+        If True, the x-axis is logarithmic.
+
+    dark : bool, optional (default=False)
+        If True, a dark theme is used.
+
+    lower : float, optional (default=0.5)
+        The lower bound of the ratio plot.
+
+    upper : float, optional (default=1.5)
+        The upper bound of the ratio plot.
+
+    fontsize : int, optional (default=18)
+        The fontsize of all labels and ticks.
+
+    Returns:
+    --------
+    None
+    '''
+
+    # theme
     if dark:
         plt.style.use('dark_background')
         color_data = 'white'
@@ -532,8 +645,11 @@ def datamc_plot(bins, livetime, df_data, df_mc, w_name_mc, w_name_plot, w_colors
     # reduce place between subplots
     plt.subplots_adjust(hspace=0.0)
     
+    # log scale
     if xlog:
         bincenters = np.power(10, (np.log10(bins[:-1]) + np.log10(bins[1:]))/2)
+        ax1.set_xscale('log')
+        ax2.set_xscale('log')
     else:
         bincenters = (bins[:-1] + bins[1:])/2
         
@@ -544,7 +660,6 @@ def datamc_plot(bins, livetime, df_data, df_mc, w_name_mc, w_name_plot, w_colors
     rate_data = hist_data / livetime
     error_data = error_data / livetime
     
-    # plot in event rate with error
     ax1.errorbar(bincenters, rate_data, yerr=error_data, fmt='o', color=color_data, label='Data')
 
     # plot MC
@@ -573,14 +688,12 @@ def datamc_plot(bins, livetime, df_data, df_mc, w_name_mc, w_name_plot, w_colors
     ax2.set_ylabel('Data / MC')
     ax2.set_xlabel(xlabel)
 
-
     # set bounds
     ax2.set_ylim(lower, upper)
     ax2.set_yticks([0.6, 0.8, 1.0, 1.2, 1.4])
 
-    if xlog:
-        ax1.set_xscale('log')
-        ax2.set_xscale('log')
+    # set xlim
+    ax1.set_xlim(bins[0], bins[-1])
 
     plt.savefig(filename, dpi=300, transparent=True)
 

@@ -3,18 +3,27 @@ from funfolding import solution as slt
 
 def bin_test_data(f_test, g_test, target_bins, tree_binning_uniform, model):
     """
-    Bins the test data based on the target bins and tree binning uniform.
+    Bins the measured data g_test based on the TreeBinning and the target f_test based on the target bins.
 
     Parameters:
-    - f_test (numpy.ndarray): Test data for f.
-    - g_test (numpy.ndarray): Test data for g.
-    - target_bins (numpy.ndarray): Target bins for digitizing f_test.
-    - tree_binning_uniform: Tree binning uniform object for digitizing g_test.
-    - model: Model object.
+    ----------
+    f_test : numpy.ndarray
+        Target data.
+    g_test : numpy.ndarray
+        Measured data.
+    target_bins : numpy.ndarray
+        Target bins.
+    tree_binning_uniform : TreeBinningSklearn (Funfolding)
+        Trained DecisionTree object to bin the observable space.
+    model : LinearModel (Funfolding)
+        Linear model f = A*g trained on the training data.
 
     Returns:
-    - vec_g_test (numpy.ndarray): Vectorized g_test.
-    - vec_f_test (numpy.ndarray): Vectorized f_test.
+    -------
+    vec_g_test : numpy.ndarray
+        Vectorized g_test.
+    vec_f_test : numpy.ndarray
+        Vectorized f_test.   
     """
     binned_g_test = tree_binning_uniform.digitize(g_test)
     binned_f_test = np.digitize(f_test, target_bins)
@@ -26,21 +35,33 @@ def bin_test_data(f_test, g_test, target_bins, tree_binning_uniform, model):
 
 def unfold_data(vec_g_test, model, n_used_steps, n_burn_steps, n_walkers, tau=None, reg_factor_f=1):
     """
-    Unfolds the data using MCMC walkers.
+    Unfolding the data by minimizing the likelihood function using MCMC.
 
     Parameters:
-    - vec_g_test (numpy.ndarray): Vectorized g_test.
-    - model: Model object.
-    - n_used_steps (int): Number of used steps for MCMC walkers.
-    - n_burn_steps (int): Number of burn steps for MCMC walkers.
-    - n_walkers (int): Number of MCMC walkers.
-    - tau (float): Tau value for the likelihood. Default is None.
-    - reg_factor_f (float): Regularization factor for f. Default is 1.
+    ----------
+    vec_g_test : numpy.ndarray
+        Vectorized proxy data.
+    model : LinearModel (Funfolding)
+        Linear model f = A*g trained on the training data.
+    n_used_steps : int
+        Number of MCMC steps to be saved.
+    n_burn_steps : int
+        Number of burn-in steps.
+    n_walkers : int
+        Number of MCMC walkers.
+    tau : float, optional
+        Regularization strength but scales with 1/tau.
+    reg_factor_f : vector, optional
+        Regularization factor for each bin in the target space.
 
     Returns:
-    - f_est_mcmc (numpy.ndarray): Estimated f using MCMC walkers.
-    - lower_err (numpy.ndarray): Lower error bound for f_est_mcmc.
-    - upper_err (numpy.ndarray): Upper error bound for f_est_mcmc.
+    -------
+    f_est_mcmc : numpy.ndarray
+        Estimated target data.
+    lower_err : numpy.ndarray
+        Lower error bound.
+    upper_err : numpy.ndarray
+        Upper error bound.
     """
     # Initialize likelihood 
     llh = slt.StandardLLH(
