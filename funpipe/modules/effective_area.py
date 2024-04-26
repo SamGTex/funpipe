@@ -99,26 +99,34 @@ def calc_effective_area(df_lvl0, df_lvl2, varname_energy, varname_zenith, bins_e
 
     return correction_factor
 
-# Bootstrapping
+# Bootstrapping (lvl2 data)
 def eff_area_bootstrapping(num_iter, df_lvl0, df_lvl2, varname_energy, varname_zenith, bins_energy, bins_zenith, varname_weights='weights', path_build=None, solid_angle=2*np.pi):
     stat_aeff = []
 
     # norm weights
-    weights_normed = df_lvl2[varname_weights] / df_lvl2[varname_weights].sum()
+    weights_normed_lvl2 = df_lvl2[varname_weights] / df_lvl2[varname_weights].sum()
+    weights_normed_lvl0 = df_lvl0[varname_weights] / df_lvl0[varname_weights].sum()
 
     for i in range(num_iter):
         # Draw random indices accoring to normed weights with replacement
         np.random.seed(i)
-        inds = np.random.choice(
-            np.arange(len(weights_normed)),
-            p=weights_normed,
+        inds_lvl2 = np.random.choice(
+            np.arange(len(weights_normed_lvl2)),
+            p=weights_normed_lvl2,
             replace=True,
-            size=len(weights_normed),
+            size=len(weights_normed_lvl2),
         )
+
+        #inds_lvl0 = np.random.choice(
+        #    np.arange(len(weights_normed_lvl0)),
+        #    p=weights_normed_lvl0,
+        #    replace=True,
+        #    size=len(weights_normed_lvl0),
+        #)
 
         # Save all boostrapping iterations
         stat_aeff += [
-            calc_effective_area(df_lvl0.iloc[inds], df_lvl2.iloc[inds], varname_energy, varname_zenith, bins_energy, bins_zenith, varname_weights='weights', path_build=None)
+            calc_effective_area(df_lvl0, df_lvl2.iloc[inds_lvl2], varname_energy, varname_zenith, bins_energy, bins_zenith, varname_weights='weights', path_build=path_build)
         ]
 
     stat_aeff = np.array(stat_aeff)

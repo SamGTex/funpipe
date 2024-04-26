@@ -102,7 +102,6 @@ def plot_oob_marker(axes, x, y, upper_bound=None, lower_bound=None, color=None):
         axes.plot(x[lower_mask], [lower_bound]*sum(lower_mask), linestyle='', marker=7, color=color)
     return
 
-import numpy as np
 
 def plot_errorend_bins(ax, bins, mean, lower_err, upper_err, color='black', linewidth=1, logx=False,width=0.2):
     '''
@@ -329,7 +328,7 @@ def plot_ratio_result_true(target_bins, R_july_reco, err_july, R_dez_reco, err_d
     plt.savefig(path_out, facecolor=facecolor)
     return
     
-def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est_12, err_12, est_14, err_14, xlabel, path_out, lower_bound_ratio=None, upper_bound_ratio=None, dark_mode=False):
+def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est_12, err_12, est_14, err_14, xlabel, path_out, lower_bound_ratio=None, upper_bound_ratio=None, dark_mode=False, y_label=None):
     if dark_mode:
         plt.style.use('dark_background')
         facecolor = DARK
@@ -340,7 +339,10 @@ def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est
         facecolor = 'white'
         color_yearunf = DARKBLUE
         color_yeartrue = 'black'
-    
+
+    if y_label is None:
+        y_label = r'Event Rate / Hz'
+
     bincenters = target_bins[:-1] + np.diff(target_bins)/2
     
     #bincenters = np.exp((np.log(target_bins[:-1]) + np.log(target_bins[1:]))/2)
@@ -391,7 +393,7 @@ def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est
         label='January reco.',
         color='#E36913'
     )
-    axes1.set_ylabel(r'Event rate / s')
+    axes1.set_ylabel(y_label)
     axes1.set_yscale('log')
     axes1.set_xscale('log')
     axes1.legend(facecolor=facecolor)
@@ -492,7 +494,7 @@ def plot_distr(x, y, weights, xlabel, ylabel, path_out, Nbins, figsize, cmap, fo
 
     # Add colorbar to the right
     cbar_ax = fig.add_subplot(gs[1, 2])
-    cbar = fig.colorbar(pcm, cax=cbar_ax, label=r'event rate / Hz')
+    cbar = fig.colorbar(pcm, cax=cbar_ax, label=r'Event Rate / Hz')
 
     # Adjust layout
     plt.tight_layout(h_pad=-1.5)#h_pad=-1.5, w_pad=-0.2)
@@ -547,7 +549,7 @@ def plot_distr_dark(x, y, weights, xlabel, ylabel, path_out, Nbins, figsize, cma
 
     # Add colorbar to the right
     cbar_ax = fig.add_subplot(gs[1, 2])
-    cbar = fig.colorbar(pcm, cax=cbar_ax, label=r'event rate / Hz')
+    cbar = fig.colorbar(pcm, cax=cbar_ax, label=r'Event Rate / Hz')
 
     # Set color of ticks and labels
     cbar.ax.yaxis.set_tick_params(color='white')
@@ -683,7 +685,7 @@ def datamc_plot(bins, livetime, df_data, df_mc, w_name_mc, w_name_plot, w_colors
 
     ax1.set_yscale('log')
     ax1.set_ylabel('Event Rate / Hz')
-    ax1.legend()
+    ax1.legend(fontsize=fontsize-3)
 
     ax2.set_ylabel('Data / MC')
     ax2.set_xlabel(xlabel)

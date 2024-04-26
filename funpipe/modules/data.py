@@ -498,7 +498,7 @@ def read_in_exp(filelist, path_features):
 
 # ---------- general ----------
 
-def create_logbins(log_E_min, log_E_max, delta_logE):
+def create_logbins(log_E_min, log_E_max, delta_logE, overflow_bins=True):
     '''
     Create logarithmic energy bins between log_E_min and log_E_max with delta_logE.
     Underflow and overflow bins are added.
@@ -512,7 +512,9 @@ def create_logbins(log_E_min, log_E_max, delta_logE):
         Maximum log10(E).
     delta_logE : float
         Logarithmic bin width.
-
+    overflow_bins : bool
+        Add under and overflow bins.
+        
     Returns
     -------
     target_bins : numpy.ndarray
@@ -521,11 +523,12 @@ def create_logbins(log_E_min, log_E_max, delta_logE):
 
     n_bins = int((log_E_max - log_E_min) / delta_logE)
     target_bins = np.logspace(log_E_min, log_E_max, n_bins+1)
-    print(f'{n_bins} bins between {log_E_min} and {log_E_max} with delta_logE={delta_logE}')
+    print(f'{n_bins} bins between {log_E_min} and {log_E_max} with delta_logE={(log_E_max - log_E_min) / n_bins}.')
 
     # add under and overflow bin
-    target_bins = np.insert(target_bins, 0, 0)
-    target_bins = np.insert(target_bins, n_bins+2, 10**30)
+    if overflow_bins:
+        target_bins = np.insert(target_bins, 0, 0)
+        target_bins = np.insert(target_bins, n_bins+2, 10**30)
     
     print('Target energy bins:\n', target_bins)
     return target_bins

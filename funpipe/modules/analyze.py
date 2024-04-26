@@ -93,6 +93,6 @@ def unfold_data(vec_g_test, model, n_used_steps, n_burn_steps, n_walkers, tau=No
     lower_err = f_est_mcmc - std_mcmc[0]
     upper_err = std_mcmc[1] - f_est_mcmc
 
-    return f_est_mcmc, lower_err, upper_err
+    return f_est_mcmc, lower_err, upper_err, sample_mcmc
 
 
