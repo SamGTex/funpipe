@@ -4,6 +4,7 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.colors import LinearSegmentedColormap
 from .calc import ratio_error
 from .calc import weighted_pearson_corr, weighted_cov
+from .calc import calc_weighted_quantiles_per_bin, calc_Wmean_Wstd
 
 # Import for script within the pipeline project
 #try:
@@ -700,3 +701,176 @@ def datamc_plot(bins, livetime, df_data, df_mc, w_name_mc, w_name_plot, w_colors
     plt.savefig(filename, dpi=300, transparent=True)
 
     return
+
+# -----------------------------
+# Variable x vs. mean of variable y in histogram with ratio plot and mask option
+def plot_x_vs_ymean(bins_x, x, y, mask_list, mask_names, mask_colors, weights, xlabel, ylabel, path_out, plot_error=False, xlog=True, ylog=True, theme='light', use_quantiles=True, fontsize=16, y_limit_low=0.85, y_limit_upper=1.15):
+    '''
+    Plot 1D-Histogram for variable x vs. mean of variable y.
+
+    Parameters
+    ----------
+    bins_x: np.array
+        Binning in x
+    x: np.array
+        Data for x
+    y: np.array
+        Data for y
+    mask_list: list(np.array)
+        List of masks for different samples
+    mask_names: list(str)
+        List of names for different samples, used as label
+    mask_colors: list(str)
+        List of colors for different samples, used for plotting
+    weights: np.array
+        Weights for each event
+    xlabel: str
+        Label for x-axis
+    ylabel: str
+        Label for y-axis
+    path_out: str
+        Path to save the plot
+    plot_error: bool
+        Plot error bars if True.
+    xlog: bool
+        Log scale for x-axis if True.
+    ylog: bool
+        Log scale for y-axis if True.
+    theme: str
+        Theme for plotting. 'light' or 'dark'
+    use_quantiles: bool
+        Use median and 1 sigma quantiles if True, else mean and std.
+    fontsize: int
+        Fontsize for plot
+    y_limit_low: float
+        Lower bound for y-axis
+    y_limit_upper: float
+        Upper bound for y-axis
+
+    Returns
+    -------
+    None
+    '''
+    
+    
+    if theme == 'light':
+        plt.style.use('default')
+        plt.rcParams.update({'font.size': fontsize})
+        color_alldata = 'k'
+
+    else:
+        plt.style.use('dark_background')
+        plt.rcParams.update({'font.size': fontsize})
+        color_alldata = 'w'
+
+    quantiles = [0.16, 0.5, 0.84]
+
+    #binning
+    #bins_x = np.geomspace(x.min(), x.max(), nbins_x+1)
+    bin_centers = np.array([(bins_x[i] + (bins_x[i+1]-bins_x[i])/2) for i in range(len(bins_x)-1)])
+    bin_width = np.array([bins_x[i+1]-bins_x[i] for i in range(len(bins_x)-1)])
+    bin_mid_onlog = np.array([10**((np.log10(bins_x[i]) + (np.log10(bins_x[i+1])-np.log10(bins_x[i]))/2)) for i in range(len(bins_x)-1)])
+
+    #plot
+    fig = plt.figure(figsize=(8,6),dpi=300) #dpi 300 for full hd
+    fig.tight_layout()
+    gs = matplotlib.gridspec.GridSpec(4, 1)
+    axes1 = fig.add_subplot(gs[:-1])
+    axes2 = fig.add_subplot(gs[-1], sharex=axes1)
+    fig.subplots_adjust(hspace = .1) #0.001
+
+    # calc weighted y mean+std for each log energy bin
+    print(f'\n{x.shape[0]} events in total:')
+    if use_quantiles:
+        _quantiles_alldata = calc_weighted_quantiles_per_bin(x, y, weights, bins_x)
+        atm_mean, atm_std = _quantiles_alldata[:,1], np.column_stack((_quantiles_alldata[:,0], _quantiles_alldata[:,2])).T
+    else:
+        atm_mean, atm_std = calc_Wmean_Wstd(x, y, weights, bins_x)
+
+    atm_mean_list = []
+    atm_std_list = []
+    ratio_mean_list = []
+    ratio_std_list = []
+    for mask, mask_name in zip(mask_list, mask_names):
+        print(f'\n{mask.sum()} events for {mask_name}:')
+        print(f'Event rate: {weights[mask].sum()} Hz')
+
+        if use_quantiles:
+            _quantiles = calc_weighted_quantiles_per_bin(x[mask], y[mask], weights[mask], bins_x)
+            _atm_mean, _atm_std = _quantiles[:,1], np.column_stack((_quantiles[:,0], _quantiles[:,2])).T
+        else:
+            _atm_mean, _atm_std = calc_Wmean_Wstd(x[mask], y[mask], weights[mask], bins_x)
+
+        # mean and std
+        atm_mean_list.append(_atm_mean)
+        atm_std_list.append(_atm_std)
+
+        # ratio
+        ratio_mean_list.append(_atm_mean/atm_mean)
+        ratio_std_list.append(np.sqrt((_atm_std/atm_mean)**2 + (atm_std*_atm_mean/atm_mean**2)**2))
+
+    # set error if true
+    if plot_error and use_quantiles:
+        yearly_std = atm_std
+    else:
+        yearly_std = None
+
+    # plot all data mean
+    axes1.errorbar(bin_centers, atm_mean, fmt=' ', color=color_alldata, xerr=bin_width/2, yerr=yearly_std, elinewidth=2, label='all data') #true distr
+    
+
+    # plot mean for each given mask
+    for _atm_mean, _atm_std, _atm_name, _color in zip(atm_mean_list, atm_std_list, mask_names, mask_colors):
+
+        # set error if true
+        if plot_error:
+            _atm_i_std = _atm_std
+        else:
+            _atm_i_std = None
+
+        axes1.errorbar(bin_centers, _atm_mean, fmt=' ', xerr=bin_width/2, yerr=_atm_i_std, elinewidth=1, label=_atm_name, color=_color)
+
+    # set log scale if true
+    if xlog:
+        axes1.set_xscale('log')
+        axes2.set_xscale('log')
+    if ylog:
+        axes1.set_yscale('log')
+    #axes1.set_xticks([],[])
+    axes1.set_ylabel(ylabel)
+
+
+    # ratio
+    for _ratio_mean, _ratio_std, _atm_name, _color in zip(ratio_mean_list, ratio_std_list, mask_names, mask_colors):
+
+        # set error if true
+        if plot_error:
+            _ratio_i_std = _ratio_std
+        else:
+            _ratio_i_std = None
+
+        axes2.errorbar(bin_centers, _ratio_mean, fmt=' ', xerr=bin_width/2, yerr=_ratio_i_std, elinewidth=1, label=_atm_name, color=_color)
+        plot_oob_marker(axes2, bin_centers, _ratio_mean, lower_bound=y_limit_low, upper_bound=y_limit_upper, color=_color)
+
+    axes2.axhline(1, color=color_alldata, linestyle='--', linewidth=1)
+    axes2.set_xlabel(xlabel)
+    axes2.set_ylim(y_limit_low, y_limit_upper)
+    axes2.set_yticks([y_limit_low,1.0,y_limit_upper])
+    axes2.set_ylabel('Ratio')
+
+    # disable xticks in top plot
+    axes1.tick_params(
+        axis='x',          # changes apply to the x-axis
+        which='both',      # both major and minor ticks are affected
+        bottom=False,      # ticks along the bottom edge are off
+        top=False,         # ticks along the top edge are off
+        labelbottom=False) # labels along the bottom edge are off
+
+    # legend right side next to plot
+    axes1.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+    # set xlim to min and max of energy
+    axes1.set_xlim(bins_x[0], bins_x[-1])
+
+    plt.savefig(path_out, transparent=True)
+    plt.close(fig)

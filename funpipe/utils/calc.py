@@ -88,3 +88,72 @@ def weighted_pearson_corr(x, y, w=None):
         # w = np.ones_like(x)
 
     return weighted_cov(x, y, w) / np.sqrt(weighted_cov(x, x, w) * weighted_cov(y, y, w))
+
+def weighted_quantile(values, quantiles, sample_weight=None, 
+                      values_sorted=False, old_style=False):
+    """ Very close to numpy.percentile, but supports weights.
+    NOTE: quantiles should be in [0, 1]!
+    :param values: numpy.array with data
+    :param quantiles: array-like with many quantiles needed
+    :param sample_weight: array-like of the same length as `array`
+    :param values_sorted: bool, if True, then will avoid sorting of
+        initial array
+    :param old_style: if True, will correct output to be consistent
+        with numpy.percentile.
+    :return: numpy.array with computed quantiles.
+    """
+    values = np.array(values)
+    quantiles = np.array(quantiles)
+    if sample_weight is None:
+        sample_weight = np.ones(len(values))
+    sample_weight = np.array(sample_weight)
+    assert np.all(quantiles >= 0) and np.all(quantiles <= 1), \
+        'quantiles should be in [0, 1]'
+
+    if not values_sorted:
+        sorter = np.argsort(values)
+        values = values[sorter]
+        sample_weight = sample_weight[sorter]
+
+    weighted_quantiles = np.cumsum(sample_weight) - 0.5 * sample_weight
+    if old_style:
+        # To be convenient with numpy.percentile
+        weighted_quantiles -= weighted_quantiles[0]
+        weighted_quantiles /= weighted_quantiles[-1]
+    else:
+        weighted_quantiles /= np.sum(sample_weight)
+    return np.interp(quantiles, weighted_quantiles, values)
+
+def calc_weighted_quantiles_per_bin(x, y, weights, bins):
+    quantiles = [0.16, 0.5, 0.84]
+
+    quantiles_per_bin = []
+
+    for i in range(len(bins)-1):
+        mask = (x > bins[i]) & (x < bins[i+1])
+        x_bin = x[mask]
+        y_bin = y[mask]
+        weights_bin = weights[mask]
+
+        quantiles_bin = weighted_quantile(y_bin, quantiles, sample_weight=weights_bin)
+        quantiles_per_bin.append(quantiles_bin)
+
+    return np.array(quantiles_per_bin)
+
+def calc_Wmean_Wstd(E, multiplicity, weights, logbins):
+    # calc mean and std for each log energy bin
+    mean = []
+    std = []
+    print(logbins)
+    for i in range(len(logbins)-1):
+        mask = (E>=logbins[i]) & (E<logbins[i+1])
+        print(f'{mask.sum()} events in bin {i}: {logbins[i]} - {logbins[i+1]}')
+        mean.append(np.average(multiplicity[mask], weights=weights[mask]))
+
+        factor = (len(multiplicity[mask] - 1) / len(multiplicity[mask]))
+        std.append(np.sqrt(1/factor * np.average((multiplicity[mask]-mean[i])**2, weights=weights[mask])))
+    
+    bins_mean = np.array(mean)
+    bins_std = np.array(std)
+
+    return bins_mean, bins_std
