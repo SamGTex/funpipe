@@ -774,7 +774,7 @@ def plot_x_vs_ymean(bins_x, x, y, mask_list, mask_names, mask_colors, weights, x
     #plot
     fig = plt.figure(figsize=(8,6),dpi=300) #dpi 300 for full hd
     fig.tight_layout()
-    gs = matplotlib.gridspec.GridSpec(4, 1)
+    gs = GridSpec(4, 1)
     axes1 = fig.add_subplot(gs[:-1])
     axes2 = fig.add_subplot(gs[-1], sharex=axes1)
     fig.subplots_adjust(hspace = .1) #0.001
