@@ -3,6 +3,9 @@ import numpy as np
 import simweights
 import os
 import h5py
+import warnings
+from tables import NaturalNameWarning
+from tqdm import tqdm
 
 # ---------- MC data ----------
 class DataManager:
@@ -38,9 +41,12 @@ class DataManager:
         col_names = df_colnames['column'].to_list()
         subcol_names = df_colnames['subcolumn'].to_list()
 
+        # ignore NaturalNameWarning
+        warnings.filterwarnings('ignore', category=NaturalNameWarning)
+
         # read in files
-        for file in filelist:
-            print(f'\rReading file {file}...', end='')
+        for file in tqdm(filelist):
+            #print(f'\rReading file {file}...', end='')
             _df = pd.DataFrame()
 
             # read in hdf5 file and store as Weighter object
@@ -90,10 +96,13 @@ class DataManager:
         col_names = df_colnames['column'].to_list()
         subcol_names = df_colnames['subcolumn'].to_list()
 
+        # ignore NaturalNameWarning
+        warnings.filterwarnings('ignore', category=NaturalNameWarning)
+
         # get weights and write in dataframe
-        for file in filelist:
+        for file in tqdm(filelist):
             # refresh line
-            print(f'\rReading file {file}...', end='')
+            #print(f'\rReading file {file}...', end='')
             _hdf = pd.HDFStore(file, "r")
 
             weighter = simweights.CorsikaWeighter(_hdf,total_files)

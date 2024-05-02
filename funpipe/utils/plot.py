@@ -704,7 +704,7 @@ def datamc_plot(bins, livetime, df_data, df_mc, w_name_mc, w_name_plot, w_colors
 
 # -----------------------------
 # Variable x vs. mean of variable y in histogram with ratio plot and mask option
-def plot_x_vs_ymean(bins_x, x, y, mask_list, mask_names, mask_colors, weights, xlabel, ylabel, path_out, plot_error=False, xlog=True, ylog=True, theme='light', use_quantiles=True, fontsize=16, y_limit_low=0.85, y_limit_upper=1.15):
+def plot_x_vs_ymean(bins_x, x, y, mask_list, mask_names, mask_colors, weights, xlabel, ylabel, path_out, plot_error=False, xlog=True, ylog=True, theme='light', use_quantiles=True, fontsize=16, figsize=(8,6), y_limit_low=0.85, y_limit_upper=1.15):
     '''
     Plot 1D-Histogram for variable x vs. mean of variable y.
 
@@ -772,7 +772,7 @@ def plot_x_vs_ymean(bins_x, x, y, mask_list, mask_names, mask_colors, weights, x
     bin_mid_onlog = np.array([10**((np.log10(bins_x[i]) + (np.log10(bins_x[i+1])-np.log10(bins_x[i]))/2)) for i in range(len(bins_x)-1)])
 
     #plot
-    fig = plt.figure(figsize=(8,6),dpi=300) #dpi 300 for full hd
+    fig = plt.figure(figsize=figsize,dpi=300) #dpi 300 for full hd
     fig.tight_layout()
     gs = GridSpec(4, 1)
     axes1 = fig.add_subplot(gs[:-1])
@@ -872,5 +872,5 @@ def plot_x_vs_ymean(bins_x, x, y, mask_list, mask_names, mask_colors, weights, x
     # set xlim to min and max of energy
     axes1.set_xlim(bins_x[0], bins_x[-1])
 
-    plt.savefig(path_out, transparent=True)
+    plt.savefig(path_out, transparent=True, bbox_inches='tight')
     plt.close(fig)
