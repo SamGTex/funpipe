@@ -41,7 +41,75 @@ def get_solid_angle(theta_max):
     
     return 2 * np.pi * (1 - np.cos(np.deg2rad(theta_max)))
 
+def create_bins_const_solid_angle(theta_min, theta_max, N_bins):
+    '''
+    Create bins with a constant solid angle.
+
+    Parameters:
+    -----------
+    theta_min : float
+        Minimum zenith angle in degrees.
+    theta_max : float
+        Maximum zenith angle in degrees.
+    N_bins : int
+        Number of bins.
+
+    Returns:
+    --------
+    bins : array-like
+        Bins with constant solid angle.
+    '''
+
+    cos_min = np.cos(np.deg2rad(theta_min))
+    cos_max = np.cos(np.deg2rad(theta_max))
+
+    bins = np.arccos(np.linspace(cos_min, cos_max, N_bins + 1))
+    bins = np.rad2deg(bins)
+
+    return bins
+
 def calc_effective_area(df_lvl0, df_lvl2, varname_energy, varname_zenith, bins_energy, bins_zenith, varname_weights='weights', path_build=None, solid_angle=2*np.pi):
+    '''
+    Calculate the effective area A and the correction factor A / (dE * dOmega) for a given set of level0 and level2 data.
+    Using the formula A = A_proj * N_lvl2 / N_lvl0 for each energy and zenith bin.
+
+    Parameters:
+    -----------
+    df_lvl0 : pd.DataFrame
+        All generated events that would have hit the detector considering only the angle.
+
+    df_lvl2 : pd.DataFrame
+        Selected events in the analysis.
+
+    varname_energy : str
+        Name of the energy variable in the dataframes.
+
+    varname_zenith : str
+        Name of the zenith variable in the dataframes.
+
+    bins_energy : array-like
+        Energy bins.
+
+    bins_zenith : array-like
+        Zenith bins.
+
+    varname_weights : str
+        Name of the weights variable in the dataframes.
+
+    path_build : str
+        Path to save plots of level0 and level2 data binned.
+        If None, no plots are saved.
+
+    solid_angle : float
+        Solid angle of the detector in steradians.
+        Default is 2 * np.pi, but needs to be adjusted for zenith cuts.
+
+    Returns:
+    --------
+    correction_factor : array-like
+        Correction factor A / (dE * dOmega) for each energy bin.
+        Can be used to correct the event rate to a relative flux.
+    '''
 
     # hist level0 data
     plt.figure(figsize=(6, 4), dpi=300)
@@ -101,6 +169,55 @@ def calc_effective_area(df_lvl0, df_lvl2, varname_energy, varname_zenith, bins_e
 
 # Bootstrapping (lvl2 data)
 def eff_area_bootstrapping(num_iter, df_lvl0, df_lvl2, varname_energy, varname_zenith, bins_energy, bins_zenith, varname_weights='weights', path_build=None, solid_angle=2*np.pi):
+    '''
+    Calculate the effective area A and returns the resulting correction factor A / (dE * dOmega) for a given set of level0 and level2 data using bootstrapping to estimate the uncertainty.
+    The calculation of the effective area is based on the formula A = A_proj * N_lvl2 / N_lvl0 for each energy and zenith bin.
+
+    Parameters:
+    -----------
+    num_iter : int
+        Number of bootstrapping iterations.
+
+    df_lvl0 : pd.DataFrame
+        All generated events that would have hit the detector considering only the angle.
+
+    df_lvl2 : pd.DataFrame
+        Selected events in the analysis.
+
+    varname_energy : str
+        Name of the energy variable in the dataframes.
+
+    varname_zenith : str
+        Name of the zenith variable in the dataframes.
+
+    bins_energy : array-like
+        Energy bins.
+
+    bins_zenith : array-like
+        Zenith bins.
+
+    varname_weights : str
+        Name of the weights variable in the dataframes.
+
+    path_build : str
+        Path to save plots of level0 and level2 data binned.
+        If None, no plots are saved.
+
+    solid_angle : float
+        Solid angle of the detector in steradians.
+        Default is 2 * np.pi, but needs to be adjusted for zenith cuts.
+
+    Returns:
+    --------
+    stat_median : array-like
+        Median of the correction factor A / (dE * dOmega) for each energy bin.
+        Can be used to correct the event rate to a relative flux.
+
+    stat_quantiles : 2D array-like
+        The 16th and 84th quantiles of the correction factor A / (dE * dOmega) for each energy bin.
+        Can be used to estimate the uncertainty of the correction factor.
+    '''
+    
     stat_aeff = []
 
     # norm weights

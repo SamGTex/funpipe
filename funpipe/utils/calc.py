@@ -33,7 +33,7 @@ def ratio_error(mean_numerator, mean_denominator, std_numerator, std_denominator
 
     return ratio_err
 
-def chi2_test(ratio_unf, ratio_true, ratio_err):
+def chi2_test(true_data, estimated_data, error_data):
     '''
     Caculate the chi2 value and pvalue of unfolded ratio to true ratio.
 
@@ -56,20 +56,14 @@ def chi2_test(ratio_unf, ratio_true, ratio_err):
     pvalue : float
         The pvalue.
     '''
-
-    expected_data = np.ones(len(ratio_unf))
-    observed_data = ratio_unf/ratio_true
     
-    # chi2 value
+    # calc chi2 distance per bin and sum over all bins
     chi2value = 0.
-    for i in range(len(expected_data)):
-        print(chi2value)
-        chi2value += ((observed_data[i])-(expected_data[i]))**2./((ratio_err[i]/ratio_true[i])**2)
-    print('Chi2 value:',chi2value)
+    for i in range(len(true_data)):
+        chi2value += ((estimated_data[i])-(true_data[i]))**2./(error_data[i]**2)
 
     # pvalue
-    pvalue =  1-chi2.cdf(chi2value, len(expected_data)-1)
-    print('Pvalue = ', pvalue)
+    pvalue =  1-chi2.sf(chi2value, len(true_data)-1)
     
     return chi2value, pvalue
 

@@ -7,7 +7,7 @@ import warnings
 from tables import NaturalNameWarning
 from tqdm import tqdm
 
-# ---------- MC data ----------
+# ---------- read in and process data: MC or exp. ----------
 class DataManager:
     def __init__(self):
         self.df_raw = pd.DataFrame()
@@ -17,6 +17,7 @@ class DataManager:
     def read_mc_weights(self, filelist, path_feature_names, total_files, models, model_names, exp=False):
         '''
         Read in data from hdf5 files and save weights and features (saved in path_feature_names) to dataframe.
+        Supports multiple weighting models.
 
         Parameters
         ----------
@@ -74,6 +75,7 @@ class DataManager:
     def read_mc(self, filelist, path_feature_names, total_files, model, exp=False):
         '''
         Read in data from hdf5 files and save weights and features (saved in path_feature_names) to dataframe.
+        Supports only one weighting model.
 
         Parameters
         ----------
@@ -125,7 +127,52 @@ class DataManager:
         
         return self.df_raw
     
+    def read_in_exp(self, filelist, path_features):
+        '''
+        Read in data from hdf5 files and save features (saved in path_features) to dataframe.
+
+        Parameters
+        ----------
+        filelist : list
+            List of paths to hdf5 files.
+        path_features : str
+            Path to csv file with feature names. (Column, Subcolumn)
+
+        Returns
+        -------
+        df : pandas.DataFrame
+            Dataframe with all features.
+        '''
+
+        # get variable names
+        df_colnames = pd.read_csv(path_features, comment='#', names=['column', 'subcolumn'], skipinitialspace=True)
+        col_names = df_colnames['column'].to_list()
+        subcol_names = df_colnames['subcolumn'].to_list()
+
+        # read in hdf5 files
+        df = pd.DataFrame()
+
+        for file in filelist:
+
+            # read in hdf5 file
+            df_i = pd.DataFrame()
+            try:
+                with h5py.File(file, 'r') as f:
+                    #print('Reading file: ' + file)
+
+                    # get features
+                    for col, subcol in zip(col_names, subcol_names):
+                        df_i[col + '.' + subcol] = f[col][subcol]
+
+                    # append to dataframe
+                    self.df_raw = pd.concat([self.df_raw, df_i], ignore_index=True)
+            except:
+                print(f'Error reading file {file} and column {col}.{subcol}.')
+
+        return self.df_raw
+
     def read_to_df(self, filelist, path_feature_names, total_files, model):
+        # OLD, maybe used in one of the first scripts
         '''
         Read in data from hdf5 files and save weights and features (saved in path_feature_names) to dataframe.
 
@@ -250,6 +297,16 @@ class DataManager:
             print('No event type defined yet.')
             print(f'Number of events: {self.df_raw.shape[0]}\n')
 
+        return
+
+    def substitute_str_in_keys(self, old_str, new_str):
+        keys = self.df_raw.keys()
+
+        for key in keys:
+            if old_str in key:
+                new_key = key.replace(old_str, new_str)
+
+                self.df_raw.rename(columns={key: new_key}, inplace=True)
         return
 
     def apply_cuts(self, conditions, inplace=True):
@@ -454,55 +511,6 @@ def index_resample_data(weights, test_size, rng):
             size=test_size
     )
     return inds
-
-
-
-# ---------- experimental data ----------
-def read_in_exp(filelist, path_features):
-        '''
-        Read in data from hdf5 files and save features (saved in path_features) to dataframe.
-
-        Parameters
-        ----------
-        filelist : list
-            List of paths to hdf5 files.
-        path_features : str
-            Path to csv file with feature names. (Column, Subcolumn)
-
-        Returns
-        -------
-        df : pandas.DataFrame
-            Dataframe with all features.
-        '''
-
-        # get variable names
-        df_colnames = pd.read_csv(path_features, comment='#', names=['column', 'subcolumn'], skipinitialspace=True)
-        col_names = df_colnames['column'].to_list()
-        subcol_names = df_colnames['subcolumn'].to_list()
-
-        # read in hdf5 files
-        df = pd.DataFrame()
-
-        for file in filelist:
-
-            # read in hdf5 file
-            df_i = pd.DataFrame()
-            try:
-                with h5py.File(file, 'r') as f:
-                    #print('Reading file: ' + file)
-
-                    # get features
-                    for col, subcol in zip(col_names, subcol_names):
-                        df_i[col + '.' + subcol] = f[col][subcol]
-
-                    # append to dataframe
-                    df = pd.concat([df, df_i], ignore_index=True)
-            except:
-                print(f'Error reading file {file} and column {col}.{subcol}.')
-
-
-        return df
-
 
 
 # ---------- general ----------

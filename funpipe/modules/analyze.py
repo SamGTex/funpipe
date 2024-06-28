@@ -1,14 +1,16 @@
 import numpy as np
 from funfolding import solution as slt
+import emcee
 
 def bin_test_data(f_test, g_test, target_bins, tree_binning_uniform, model):
     """
     Bins the measured data g_test based on the TreeBinning and the target f_test based on the target bins.
+    Set f_test to None if unknown, return None for vec_f_test in this case.
 
     Parameters:
     ----------
     f_test : numpy.ndarray
-        Target data.
+        Target data. Set to None if unknown.
     g_test : numpy.ndarray
         Measured data.
     target_bins : numpy.ndarray
@@ -21,19 +23,26 @@ def bin_test_data(f_test, g_test, target_bins, tree_binning_uniform, model):
     Returns:
     -------
     vec_g_test : numpy.ndarray
-        Vectorized g_test.
+        Vectorized g_test. 
     vec_f_test : numpy.ndarray
-        Vectorized f_test.   
+        Vectorized f_test. Return None if f_test is None.  
     """
     binned_g_test = tree_binning_uniform.digitize(g_test)
-    binned_f_test = np.digitize(f_test, target_bins)
-    vec_g_test, vec_f_test = model.generate_vectors(
-        digitized_obs=binned_g_test,
-        digitized_truth=binned_f_test
-    )
+
+    if f_test is None:
+        vec_g_test, vec_f_test = model.generate_vectors(
+            digitized_obs=binned_g_test,
+        )
+
+    else:
+        binned_f_test = np.digitize(f_test, target_bins)
+        vec_g_test, vec_f_test = model.generate_vectors(
+            digitized_obs=binned_g_test,
+            digitized_truth=binned_f_test
+        )
     return vec_g_test, vec_f_test
 
-def unfold_data(vec_g_test, model, n_used_steps, n_burn_steps, n_walkers, tau=None, reg_factor_f=1):
+def unfold_data(vec_g_test, model, n_used_steps, n_burn_steps, n_walkers, tau=None, reg_factor_f=1, error_calc='bayesian', move_object=emcee.moves.StretchMove()):
     """
     Unfolding the data by minimizing the likelihood function using MCMC.
 
@@ -84,6 +93,8 @@ def unfold_data(vec_g_test, model, n_used_steps, n_burn_steps, n_walkers, tau=No
         n_walkers=n_walkers,
         n_burn_steps=n_burn_steps,
         random_state=42,
+        error_calc=error_calc,
+        move_object=move_object
     )
     llh_mcmc.initialize(model=llh.model, llh=llh)
     llh_mcmc.set_x0_and_bounds() # E>0 as bound possible?
@@ -93,6 +104,4 @@ def unfold_data(vec_g_test, model, n_used_steps, n_burn_steps, n_walkers, tau=No
     lower_err = f_est_mcmc - std_mcmc[0]
     upper_err = std_mcmc[1] - f_est_mcmc
 
-    return f_est_mcmc, lower_err, upper_err, sample_mcmc
-
-
+    return f_est_mcmc, lower_err, upper_err, sample_mcmc, autocorr_time_mcmc

@@ -24,8 +24,34 @@ TUGREEN = (132/255, 184/255, 25/255)
 DARK = '#3a3d41'
 DARKBLUE = '#170a45'
 
+def create_color_list(N: int) -> list:
+    '''Create a list of colors that qualitatively maximizes the difference between successive colours.
+
+    Parameters:
+    -----------
+    N : int
+        Number of colors to create. Maximum is 8.
+
+    Returns:
+    --------
+    color_list : list
+        List of colors for plotting.
+    '''
+    color_list = [
+        '#e41a1c',
+        '#377eb8',
+        '#4daf4a',
+        '#984ea3',
+        '#ff7f00',
+        '#ffff33',
+        '#a65628',
+        '#f781bf'
+    ]
+
+    return color_list[:N]
+
 # ------ helper functions ------
-def fill_between_axes(axes, bins, y1, y2, color, alpha=0.5):
+def fill_between_axes(axes, bins, y1, y2, color, alpha=0.5) -> None:
 
     '''
     Fill the area between two lines in a histogram plot.
@@ -69,7 +95,7 @@ def fill_between_axes(axes, bins, y1, y2, color, alpha=0.5):
     return
 
 
-def plot_oob_marker(axes, x, y, upper_bound=None, lower_bound=None, color=None):
+def plot_oob_marker(axes, x, y, upper_bound=None, lower_bound=None, color=None) -> None:
     '''Plots out of bound markers at the upper or lower boundary.
 
     Parameters:
@@ -104,7 +130,7 @@ def plot_oob_marker(axes, x, y, upper_bound=None, lower_bound=None, color=None):
     return
 
 
-def plot_errorend_bins(ax, bins, mean, lower_err, upper_err, color='black', linewidth=1, logx=False,width=0.2):
+def plot_errorend_bins(ax, bins, mean, lower_err, upper_err, color='black', linewidth=1, logx=False, width=0.2) -> None:
     '''
     Plot horizontal line at end of errorbars.
 
@@ -126,11 +152,8 @@ def plot_errorend_bins(ax, bins, mean, lower_err, upper_err, color='black', line
         The width of the errorbars.
     logx : bool, optional (default=False)
         If True, the x-axis is logarithmic.
-
-    Returns:
-    --------
-    ax : matplotlib.pyplot.axis
-        The axis with the errorbars.
+    width : float, optional (default=0.2)
+        The relative width of the errorbars, where 0.2 means 20% of the bin width.
     '''
 
     if logx == False:
@@ -154,44 +177,7 @@ def plot_errorend_bins(ax, bins, mean, lower_err, upper_err, color='black', line
 
             ax.hlines(mean[i]-lower_err[i], err_start, err_end, color=color, linewidth=linewidth)
             ax.hlines(mean[i]+upper_err[i], err_start, err_end, color=color, linewidth=linewidth)
-
-
-
-def plot_errorend(ax, bin_centers, mean, lower_err, upper_err, color='black', linewidth=1):
-    '''
-    Plot horizontal line at end of errorbars.
-
-    Parameters:
-    -----------
-    ax : matplotlib.pyplot.axis
-        Where to pot the data.
-    bin_centers : numpy.array
-        The bin centers of the histogram.
-    mean : numpy.array
-        The mean values of the histogram.
-    lower_err : numpy.array
-        The lower error of the histogram.
-    upper_err : numpy.array
-        The upper error of the histogram.
-    color : color, optional (default='black')
-        The color of the errorbars.
-    linewidth : float, optional (default=1)
-        The width of the errorbars.
-
-    Returns:
-    --------
-    ax : matplotlib.pyplot.axis
-        The axis with the errorbars.
-    '''
-
-    for i, bin_value in enumerate(bin_centers):
-        err_start = bin_value - 0.5*(bin_centers[1] - bin_centers[0])
-        err_end = bin_value + 0.5*(bin_centers[1] - bin_centers[0])
-
-        ax.hlines(mean[i]-lower_err[i], err_start, err_end, color=color, linewidth=linewidth)
-        ax.hlines(mean[i]+upper_err[i], err_start, err_end, color=color, linewidth=linewidth)
-    
-    return ax
+    return
 
 def plot_ratio_result_true(target_bins, R_july_reco, err_july, R_dez_reco, err_dez, R_july_true, R_dez_true, xlabel, path_out, lower_bound_ratio=None, upper_bound_ratio=None, dark_mode=False):
     # check if dark mode is set
@@ -712,38 +698,55 @@ def plot_x_vs_ymean(bins_x, x, y, mask_list, mask_names, mask_colors, weights, x
     ----------
     bins_x: np.array
         Binning in x
+
     x: np.array
         Data for x
+
     y: np.array
         Data for y
+
     mask_list: list(np.array)
         List of masks for different samples
+
     mask_names: list(str)
         List of names for different samples, used as label
+
     mask_colors: list(str)
         List of colors for different samples, used for plotting
+
     weights: np.array
         Weights for each event
+
     xlabel: str
         Label for x-axis
+    
     ylabel: str
         Label for y-axis
+    
     path_out: str
         Path to save the plot
+    
     plot_error: bool
         Plot error bars if True.
+    
     xlog: bool
         Log scale for x-axis if True.
+    
     ylog: bool
         Log scale for y-axis if True.
+    
     theme: str
         Theme for plotting. 'light' or 'dark'
+    
     use_quantiles: bool
         Use median and 1 sigma quantiles if True, else mean and std.
+    
     fontsize: int
         Fontsize for plot
+    
     y_limit_low: float
         Lower bound for y-axis
+    
     y_limit_upper: float
         Upper bound for y-axis
 
