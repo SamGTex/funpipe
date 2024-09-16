@@ -67,6 +67,11 @@ def chi2_test(true_data, estimated_data, error_data):
     
     return chi2value, pvalue
 
+def global_correlation(cov):
+    cov_inv = np.linalg.inv(cov)
+
+    return np.mean(np.sqrt(1 - 1 / (np.diag(cov) * np.diag(cov_inv))))
+
 def weighted_cov(x, y, w):
     """Weighted Covariance"""
     w_mean_x = np.average(x, weights=w)

@@ -1,6 +1,8 @@
 import numpy as np
 from funfolding import solution as slt
 import emcee
+from iminuit import Minuit
+
 
 def bin_test_data(f_test, g_test, target_bins, tree_binning_uniform, model):
     """
@@ -42,7 +44,7 @@ def bin_test_data(f_test, g_test, target_bins, tree_binning_uniform, model):
         )
     return vec_g_test, vec_f_test
 
-def unfold_data(vec_g_test, model, n_used_steps, n_burn_steps, n_walkers, tau=None, reg_factor_f=1, error_calc='bayesian', move_object=emcee.moves.StretchMove()):
+def unfold_data_mcmc(vec_g_test, model, n_used_steps, n_burn_steps, n_walkers, tau=None, reg_factor_f=1, error_calc='bayesian', move_object=emcee.moves.StretchMove()):
     """
     Unfolding the data by minimizing the likelihood function using MCMC.
 
@@ -105,3 +107,54 @@ def unfold_data(vec_g_test, model, n_used_steps, n_burn_steps, n_walkers, tau=No
     upper_err = std_mcmc[1] - f_est_mcmc
 
     return f_est_mcmc, lower_err, upper_err, sample_mcmc, autocorr_time_mcmc
+
+def unfold_data_minuit(vec_g_test, model, tau=None, reg_factor_f=1, simplex=True, ncall=None, errordef=Minuit.LIKELIHOOD, fixed=[]):
+    """
+    Unfolding the data by minimizing the likelihood function using Minuit.
+
+    Parameters:
+    ----------
+    vec_g_test : numpy.ndarray
+        Vectorized proxy data.
+    model : LinearModel (Funfolding)
+        Linear model f = A*g trained on the training data.
+    tau : float, optional
+        Regularization strength but scales with 1/tau.
+    reg_factor_f : vector, optional
+        Regularization factor for each bin in the target space.
+
+    Returns:
+    -------
+    f_est_mcmc : numpy.ndarray
+        Estimated target data.
+    lower_err : numpy.ndarray
+        Lower error bound.
+    upper_err : numpy.ndarray
+        Upper error bound.
+    """
+    # Initialize likelihood 
+    llh = slt.StandardLLH(
+        tau=tau,
+        C='thikonov',
+        log_f=True,
+        log_f_offset=1e-10,
+        reg_factor_f=reg_factor_f #1/true_target
+    )
+    llh.initialize(
+        vec_g=vec_g_test,
+        model=model,
+        ignore_n_bins_low=1,
+        ignore_n_bins_high=1
+    )
+
+    # Employ MCMC walkers
+    llh_minuit = slt.LLHSolutionMinuit(
+    )
+    llh_minuit.initialize(model=llh.model, llh=llh)
+    llh_minuit.set_x0_and_bounds() # E>0 as bound possible?
+
+    # Unfold
+    obj_minuit = llh_minuit.fit(ncall=ncall, simplex=simplex, errordef=errordef, fixed=fixed)
+    obj_minuit.minos()
+
+    return obj_minuit

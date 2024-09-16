@@ -179,6 +179,40 @@ def plot_errorend_bins(ax, bins, mean, lower_err, upper_err, color='black', line
             ax.hlines(mean[i]+upper_err[i], err_start, err_end, color=color, linewidth=linewidth)
     return
 
+def plot_errorend(ax, bin_centers, mean, lower_err, upper_err, color='black', linewidth=1):
+    '''
+    Plot horizontal line at end of errorbars for given bin-centers.
+    Parameters:
+    -----------
+    ax : matplotlib.pyplot.axis
+        Where to pot the data.
+    bin_centers : numpy.array
+        The bin centers of the histogram.
+    mean : numpy.array
+        The mean values of the histogram.
+    lower_err : numpy.array
+        The lower error of the histogram.
+    upper_err : numpy.array
+        The upper error of the histogram.
+    color : color, optional (default='black')
+        The color of the errorbars.
+    linewidth : float, optional (default=1)
+        The width of the errorbars.
+    Returns:
+    --------
+    ax : matplotlib.pyplot.axis
+        The axis with the errorbars.
+    '''
+
+    for i, bin_value in enumerate(bin_centers):
+        err_start = bin_value - 0.5*(bin_centers[1] - bin_centers[0])
+        err_end = bin_value + 0.5*(bin_centers[1] - bin_centers[0])
+
+        ax.hlines(mean[i]-lower_err[i], err_start, err_end, color=color, linewidth=linewidth)
+        ax.hlines(mean[i]+upper_err[i], err_start, err_end, color=color, linewidth=linewidth)
+
+    return ax
+
 def plot_ratio_result_true(target_bins, R_july_reco, err_july, R_dez_reco, err_dez, R_july_true, R_dez_true, xlabel, path_out, lower_bound_ratio=None, upper_bound_ratio=None, dark_mode=False):
     # check if dark mode is set
     if dark_mode:
@@ -315,7 +349,7 @@ def plot_ratio_result_true(target_bins, R_july_reco, err_july, R_dez_reco, err_d
     plt.savefig(path_out, facecolor=facecolor)
     return
     
-def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est_12, err_12, est_14, err_14, xlabel, path_out, lower_bound_ratio=None, upper_bound_ratio=None, dark_mode=False, y_label=None):
+def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est_12, err_12, est_14, err_14, xlabel, path_out, lower_bound_ratio=None, upper_bound_ratio=None, dark_mode=False, y_label=None, fontsize=14):
     if dark_mode:
         plt.style.use('dark_background')
         facecolor = DARK
@@ -326,6 +360,8 @@ def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est
         facecolor = 'white'
         color_yearunf = DARKBLUE
         color_yeartrue = 'black'
+    
+    plt.rcParams.update({'font.size': fontsize})
 
     if y_label is None:
         y_label = r'Event Rate / Hz'
@@ -335,7 +371,7 @@ def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est
     #bincenters = np.exp((np.log(target_bins[:-1]) + np.log(target_bins[1:]))/2)
 
     xerr = np.diff(target_bins)/2
-    fig, (axes1, axes2) = plt.subplots(2,1,sharex=True,gridspec_kw={'height_ratios': [4,1]}, facecolor=facecolor)
+    fig, (axes1, axes2) = plt.subplots(2,1,sharex=True,gridspec_kw={'height_ratios': [4,1]}, facecolor=facecolor, figsize=(6,4), dpi=300)
     
     # Set face color for each subplot
     axes1.set_facecolor(facecolor)
@@ -384,7 +420,9 @@ def plot_ratio_season_year(target_bins, true_target, est_annual, err_annual, est
     axes1.set_yscale('log')
     axes1.set_xscale('log')
     axes1.legend(facecolor=facecolor)
-
+    axes1.grid(True, which='both', linestyle='--', linewidth=0.5)
+    axes2.grid(True, which='both', linestyle='--', linewidth=0.5)
+    
     # ratio plot
     axes2.plot(
         [target_bins[0], target_bins[-1]],
@@ -557,10 +595,16 @@ def cmap_custom(color_list):
     return cmap
 
 def cmap_tuorange():
-    return cmap_custom([DARKBLUE, TUORANGE, (1,1,1)])
+    cmap = cmap_custom([DARKBLUE, TUORANGE, (1,1,1)])
+    cmap.set_bad(color=DARKBLUE)
+
+    return cmap
 
 def cmap_tuorange_reverse():
-    return cmap_custom([(1,1,1), TUORANGE, DARKBLUE])
+    cmap = cmap_custom([(1,1,1), TUORANGE, DARKBLUE])
+    cmap.set_bad(color=(1,1,1))
+
+    return cmap
 
 # -----------------------------
 # MC vs. Data comparison

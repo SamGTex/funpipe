@@ -24,18 +24,18 @@ class DataManager:
         filelist : list
             List of paths to hdf5 files.
         path_feature_names : str
-            Path to csv file with feature names.
+            Path to csv file with two columns naming the main key and subkey of the feature.
         total_files : int
-            Number of files for calculating weights.
+            Total number of files for calculating weights.
         models : list of simweights.Model
-            Models to calculate weights.
+            Primary cosmic ray models from Simweights.
         model_names : list of str
-            Output name of model in dataframe.
+            Key names for the weights in the dataframe.
             
         Returns
         -------
         df_raw : pandas.DataFrame
-            Dataframe with all features and weights.
+            Dataframe with all selected features and weights from selected models.
         '''
         # get variable names
         df_colnames = pd.read_csv(path_feature_names, comment='#', names=['column', 'subcolumn'], skipinitialspace=True)
@@ -126,6 +126,7 @@ class DataManager:
         print('Done.\n')
         
         return self.df_raw
+
     
     def read_in_exp(self, filelist, path_features):
         '''

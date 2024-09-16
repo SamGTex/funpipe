@@ -10,7 +10,7 @@ def A_projected(zenith, r=600, l=1200):
 
     Parameters:
     -----------
-    zenith : float or array-like
+    zenith : zenith angle in radians
     r : float
         Radius of the cylinder.
     l : float
@@ -24,7 +24,7 @@ def A_projected(zenith, r=600, l=1200):
     A = np.pi * r * r * np.cos(zenith) + 2 * r * l * np.sin(zenith)
     return A
 
-def get_solid_angle(theta_max):
+def get_solid_angle(theta_max, per_bin=False):
     '''
     Calculate the solid angle of a cone with opening angle theta_max.
 
@@ -38,12 +38,13 @@ def get_solid_angle(theta_max):
     solid_angle : float
         Solid angle of the cone in steradians.
     '''
-    
+
     return 2 * np.pi * (1 - np.cos(np.deg2rad(theta_max)))
+
 
 def create_bins_const_solid_angle(theta_min, theta_max, N_bins):
     '''
-    Create bins with a constant solid angle.
+    Create bins with a constant solid angle in degrees.
 
     Parameters:
     -----------
@@ -100,9 +101,10 @@ def calc_effective_area(df_lvl0, df_lvl2, varname_energy, varname_zenith, bins_e
         Path to save plots of level0 and level2 data binned.
         If None, no plots are saved.
 
-    solid_angle : float
+    solid_angle : float or array-like
         Solid angle of the detector in steradians.
         Default is 2 * np.pi, but needs to be adjusted for zenith cuts.
+        Array-like if different solid angles are used for different energy bins (shape equal to bins_energy).
 
     Returns:
     --------
@@ -157,6 +159,7 @@ def calc_effective_area(df_lvl0, df_lvl2, varname_energy, varname_zenith, bins_e
     
     # calc 2D effective area
     A_eff_2d = projected_areas * level2_map / level0_map
+    print(f'Number of empty bins in A_eff_2d: {(A_eff_2d[np.isfinite(A_eff_2d) == False]).sum()}')
     A_eff_2d[np.isfinite(A_eff_2d) == False] = 0
 
     # calc 1D effective area
@@ -223,7 +226,8 @@ def eff_area_bootstrapping(num_iter, df_lvl0, df_lvl2, varname_energy, varname_z
     # norm weights
     weights_normed_lvl2 = df_lvl2[varname_weights] / df_lvl2[varname_weights].sum()
     weights_normed_lvl0 = df_lvl0[varname_weights] / df_lvl0[varname_weights].sum()
-
+    
+    print(f'Dataframe before bootstrapping: {df_lvl2}')
     for i in range(num_iter):
         # Draw random indices accoring to normed weights with replacement
         np.random.seed(i)
@@ -231,7 +235,7 @@ def eff_area_bootstrapping(num_iter, df_lvl0, df_lvl2, varname_energy, varname_z
             np.arange(len(weights_normed_lvl2)),
             p=weights_normed_lvl2,
             replace=True,
-            size=len(weights_normed_lvl2),
+            size=len(weights_normed_lvl2)*1000,
         )
 
         #inds_lvl0 = np.random.choice(
@@ -240,10 +244,11 @@ def eff_area_bootstrapping(num_iter, df_lvl0, df_lvl2, varname_energy, varname_z
         #    replace=True,
         #    size=len(weights_normed_lvl0),
         #)
+        print(f'inds_lvl2: {inds_lvl2}')
 
         # Save all boostrapping iterations
         stat_aeff += [
-            calc_effective_area(df_lvl0, df_lvl2.iloc[inds_lvl2], varname_energy, varname_zenith, bins_energy, bins_zenith, varname_weights='weights', path_build=path_build)
+            calc_effective_area(df_lvl0, df_lvl2.iloc[inds_lvl2], varname_energy, varname_zenith, bins_energy, bins_zenith, varname_weights='weights', path_build=path_build, solid_angle=solid_angle)
         ]
 
     stat_aeff = np.array(stat_aeff)
